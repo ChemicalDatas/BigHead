@@ -1,0 +1,116 @@
+# Big Head — Iteration 2A Test Plan
+
+A checklist for verifying iteration 2A on Fedora. Tick items as they pass
+(`[ ]` → `[x]`) and log anything odd in **Findings** at the end.
+
+## Setup
+
+Run every test from a terminal in the project folder so the log lines are
+visible. Flags go after `--`.
+
+| Flag | Effect |
+| --- | --- |
+| `--reset` | Forget the saved head, style and uploads (first-launch flow) |
+| `--no-steam` | Ignore Steam even if it's available |
+| `--reset-achievement` | Re-lock the test achievements |
+| `--fake-friends=N` | Pretend N friends have Big Head |
+
+Terminal lines worth watching: `[game] Steam available: …`, `[friends] …`,
+and `[achievements] UNLOCKED …`.
+
+- [ ] Pulled the latest from GitHub (`git pull`)
+- [ ] Running Godot 4.6 (Help → About)
+
+## 1. First launch without Steam
+
+Run `godot --path . -- --reset --no-steam`.
+
+- [ ] Splash shows "Scapegoat A. L. LLC", then the builder
+- [ ] Name box is visible; typing a ~20-character name updates the preview banner live
+- [ ] Head tab: every picker cycles both directions and nudges the head
+- [ ] Head size slider at 150%: the whole figure shrinks to fit and never hits the banner
+- [ ] "Become a Big Head": reveal shows the built head and typed name, with no pop
+- [ ] No `UNLOCKED` lines in the terminal
+
+## 2. Body tab
+
+- [ ] All five bodies cycle (Suit, Hoodie, T-shirt, Robe, Goat), each with its own default color
+- [ ] Goat outline is smooth and it stands on four hooved legs
+- [ ] T-shirt has no star; Robe has no belt stripe
+- [ ] Changing the body color recolors the trim (suit tie and lapels, hoodie pocket, goat tufts)
+- [ ] "Save body template…" writes a PNG with the outlines on it
+- [ ] A painted template uploads and covers the body inside its outline
+- [ ] A huge photo (over 4000 px) uploads fine
+- [ ] A non-image file shows a red error message and nothing crashes
+- [ ] "Remove" returns the body to a solid color
+
+## 3. Scene tab
+
+- [ ] All five backgrounds cycle (Night, Sunset, Spotlight, Office, Party)
+- [ ] A wide photo uploads and fills the screen, cropped, not stretched
+- [ ] A tall photo uploads and fills the screen, cropped, not stretched
+- [ ] Banner color and text color change live
+- [ ] All six fonts work; the longest name still fits in Press Start 2P and Lobster
+
+## 4. Persistence
+
+Quit, then relaunch without `--reset`.
+
+- [ ] The builder is skipped; the game lands in the reveal
+- [ ] Body texture, background, banner style and head size are all intact
+
+## 5. Playground
+
+Run `godot --path . -- --fake-friends=19`.
+
+- [ ] Clicking the head bobbles it toward the click; clicking elsewhere still nudges it
+- [ ] Pressing on the head and moving pulls it away on the spring neck
+- [ ] Releasing a drag flings the head and it snaps back
+- [ ] A quick press without moving counts as a click, not a drag
+- [ ] Right-click launches 20 rockets with an "x20" marker
+- [ ] Spamming right-click keeps a steady frame rate (capped at 80 rockets on screen)
+- [ ] With `--fake-friends=4`: 5 rockets and "x5"
+- [ ] With no flag: 1 rocket and no marker
+- [ ] The hint text at the bottom matches the rocket count each time
+
+## 6. Achievements (Steam path)
+
+Needs GodotSteam installed and Steam running. Run
+`godot --path . -- --reset --reset-achievement --fake-friends=19` and watch for
+`UNLOCKED` lines. Four achievements show a Spacewar popup; the rest only print
+to the terminal until the App ID.
+
+- [ ] Terminal shows `[game] Steam available: true`
+- [ ] Finish the reveal: BIG_HEAD, with a Spacewar popup
+- [ ] Max the head slider in the builder: SWELLED_HEAD
+- [ ] Right-click once: ITS_A_PARTY (popup) and GRAND_FINALE
+- [ ] Fling the head hard: WHIPLASH (popup)
+- [ ] Click the head 100 times: BOBBLE_BOOP (popup)
+- [ ] Keep it moving for 60 seconds: PERPETUAL_MOTION
+- [ ] Leave it untouched for 5 minutes: LEVEL_HEADED
+- [ ] Launch 50 rockets in total: OOH_AAH (a lifetime count, so it may unlock early on repeat runs)
+- [ ] Each achievement unlocks once per session, with no repeats in the log
+- [ ] Without the fake flag, the log shows `[friends] checking N friends` (expect 0 on app 480)
+
+## 7. Exported builds
+
+Install export templates first (Editor → Manage Export Templates).
+
+- [ ] Linux export succeeds and `build/linux/BigHead.x86_64` runs
+- [ ] Sections 4 and 5 pass briefly in the Linux build
+- [ ] Windows export succeeds
+- [ ] The Windows `.exe` runs under Proton or Wine (optional)
+
+## Known issues
+
+Already tracked, so they don't count as failures:
+
+- The customize screen has no Cancel, and Esc quits the game
+- Returning from Customize replays the full reveal
+- Script errors on Kinoite, pending the error text and Godot version
+
+## Findings
+
+| Section | What happened | Terminal output |
+| --- | --- | --- |
+|  |  |  |
