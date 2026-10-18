@@ -164,6 +164,8 @@ func _draw_base_and_body() -> void:
 	# Body: deliberately tiny next to the head.
 	var body := BodyShapes.outline(build.body_shape)
 	var textured := build.use_body_texture and body_texture != null
+	if build.body_shape == 4:
+		_draw_goat_legs(Color("#d9cdb6") if textured else build.body_color.darkened(0.12))
 	if textured:
 		draw_colored_polygon(body, Color.WHITE, BodyShapes.uvs(body), body_texture)
 	else:
@@ -187,21 +189,24 @@ func _draw_body_details(shape: int, color: Color) -> void:
 			draw_rect(Rect2(-36, 118, 72, 34), dark)
 			draw_line(Vector2(-10, 46), Vector2(-12, 90), Color.WHITE, 3.0, true)
 			draw_line(Vector2(10, 46), Vector2(12, 90), Color.WHITE, 3.0, true)
-		2:  # T-shirt: collar and a star
+		2:  # T-shirt: collar
 			draw_arc(Vector2(0, 36), 16, 0.0, PI, 12, dark, 5.0, true)
-			var star := PackedVector2Array()
-			for i in range(10):
-				var a := -PI / 2 + TAU * float(i) / 10.0
-				star.append(Vector2(0, 112) + Vector2.from_angle(a) * (20.0 if i % 2 == 0 else 9.0))
-			draw_colored_polygon(star, Color("#f1c40f"))
-		3:  # Robe: V collar and belt
+		3:  # Robe: V collar
 			draw_colored_polygon(PackedVector2Array([Vector2(-20, 36), Vector2(20, 36), Vector2(0, 76)]), light)
-			draw_rect(Rect2(-66, 112, 132, 12), Color("#f1c40f"))
 		4:  # Goat: a few tufts and a bell
-			for p in [Vector2(-40, 90), Vector2(30, 80), Vector2(-10, 140), Vector2(42, 140)]:
+			for p in [Vector2(-40, 86), Vector2(30, 76), Vector2(-10, 126), Vector2(42, 124)]:
 				draw_arc(p, 9, PI, TAU, 8, dark, 3.0, true)
 			draw_circle(Vector2(0, 58), 10, GOLD)
 			draw_arc(Vector2(0, 58), 10, 0, TAU, 16, OUTLINE, 2.0, true)
+
+
+func _draw_goat_legs(color: Color) -> void:
+	for leg in BodyShapes.goat_legs():
+		draw_rect(leg, color)
+		draw_rect(leg, OUTLINE, false, 3.0)
+		var hoof := Rect2(leg.position.x - 1, leg.end.y - 9, leg.size.x + 2, 9)
+		draw_rect(hoof, Color("#3a2a20"))
+		draw_rect(hoof, OUTLINE, false, 3.0)
 
 
 func _draw_neck() -> void:

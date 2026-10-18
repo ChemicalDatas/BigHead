@@ -25,18 +25,26 @@ static func outline(shape: int) -> PackedVector2Array:
 				Vector2(-88, 178), Vector2(-62, 64), Vector2(-38, 36), Vector2(38, 36),
 				Vector2(62, 64), Vector2(88, 178),
 			])
-		4:  # Goat: a fluffy blob
+		4:  # Goat: a fluffy blob standing on four legs (see goat_legs)
 			var pts := PackedVector2Array()
 			for i in range(168):
 				var t := TAU * float(i) / 168.0
 				var fluff := 1.0 + 0.07 * sin(t * 14.0)
-				pts.append(Vector2(0, 108) + Vector2(cos(t) * 74.0, sin(t) * 68.0) * fluff)
+				pts.append(Vector2(0, 98) + Vector2(cos(t) * 74.0, sin(t) * 56.0) * fluff)
 			return pts
 		_:  # Suit
 			return PackedVector2Array([
 				Vector2(-70, 172), Vector2(-62, 70), Vector2(-40, 36), Vector2(40, 36),
 				Vector2(62, 70), Vector2(70, 172),
 			])
+
+
+## The goat's legs as rectangles (drawn behind the body, hooves at the bottom).
+static func goat_legs() -> Array[Rect2]:
+	var legs: Array[Rect2] = []
+	for x in [-50.0, -22.0, 10.0, 38.0]:
+		legs.append(Rect2(x, 130, 13, 46))
+	return legs
 
 
 static func uvs(points: PackedVector2Array) -> PackedVector2Array:
