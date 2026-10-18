@@ -6,20 +6,28 @@ extends Node2D
 ## The node's origin is the neck pivot. The head swings around it.
 
 signal popped
+## A left click that didn't turn into a drag. `on_head` is true when it hit the head.
+signal clicked(on_head: bool)
+## A drag ended; `speed` is the cursor speed at release in pixels per second.
+signal drag_released(speed: float)
 
 const OUTLINE := Color("#2a1d17")
 const HAIR_COLOR := Color("#3b2416")
-const SUIT := Color("#2f3a5c")
-const SUIT_LIGHT := Color("#3f4d78")
 const BASE := Color("#c9a54a")
 const BONE := Color("#efe2c6")
 const GOLD := Color("#f2c037")
 
-@export var head_radius := 140.0
+## Pixels the cursor must move while held before a press becomes a drag.
+const DRAG_THRESHOLD := 8.0
+
+## Head radius at head_size 1.0. The build's head_size multiplies it.
+@export var base_radius := 140.0
 @export var interactive := true
 @export var show_body := true
 
 var build: HeadBuild = HeadBuild.new()
+## Uploaded body texture, drawn when build.use_body_texture is on.
+var body_texture: Texture2D = null
 var steam_texture: Texture2D = null
 var show_steam_face := false
 ## Hides the face layer entirely (a Steam player with no built head, before the pop).
@@ -29,8 +37,34 @@ var face_scale := Vector2.ONE
 
 var bobble := BobbleState.new()
 
+var _pressing := false
+var _press_on_head := false
+var _press_position := Vector2.ZERO
+var _grab_offset := Vector2.ZERO
+var _last_mouse := Vector2.ZERO
+var _mouse_velocity := Vector2.ZERO
+
+
+func radius() -> float:
+	return base_radius * build.head_size
+
+
+## Height of the whole figure above the pivot (head plus the tallest hat) and below it (the base).
+func extent_above_pivot() -> float:
+	return radius() * 2.8
+
+
+func extent_below_pivot() -> float:
+	return 232.0 if show_body else radius() * 0.1
+
 
 func _physics_process(delta: float) -> void:
+	if bobble.dragging:
+		var mouse := get_local_mouse_position()
+		var instant := (mouse - _last_mouse) / maxf(delta, 0.0001)
+		_mouse_velocity = _mouse_velocity.lerp(instant, 0.5)
+		_last_mouse = mouse
+		bobble.update_drag(mouse - _grab_offset)
 	bobble.step(delta)
 
 
@@ -41,14 +75,40 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not interactive:
 		return
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var toward := get_local_mouse_position() - head_center()
-		bobble.nudge_toward(toward, 1.0)
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_begin_press()
+		elif _pressing:
+			_end_press()
+	elif event is InputEventMouseMotion and _pressing and _press_on_head and not bobble.dragging:
+		if get_local_mouse_position().distance_to(_press_position) > DRAG_THRESHOLD:
+			# The head is grabbed where it was pressed: keep that point under the cursor.
+			_grab_offset = _press_position - bobble.offset
+			_last_mouse = get_local_mouse_position()
+			_mouse_velocity = Vector2.ZERO
+			bobble.begin_drag()
+
+
+func _begin_press() -> void:
+	_pressing = true
+	_press_position = get_local_mouse_position()
+	_press_on_head = _press_position.distance_to(head_center()) <= radius() * 1.15
+
+
+func _end_press() -> void:
+	_pressing = false
+	if bobble.dragging:
+		bobble.end_drag(_mouse_velocity)
+		drag_released.emit(_mouse_velocity.length())
+		return
+	var toward := get_local_mouse_position() - head_center()
+	bobble.nudge_toward(toward, 1.0)
+	clicked.emit(_press_on_head)
 
 
 ## Head centre in this node's local space, including the current bobble.
 func head_center() -> Vector2:
-	return bobble.offset + Vector2(0.0, -head_radius * 0.92).rotated(bobble.angle)
+	return bobble.offset + Vector2(0.0, -radius() * 0.92).rotated(bobble.angle)
 
 
 ## Squash, swap the face for the Steam avatar, spring it out.
@@ -80,7 +140,7 @@ func _draw() -> void:
 	_draw_neck()
 
 	draw_set_transform(bobble.offset, bobble.angle, Vector2.ONE)
-	var r := head_radius
+	var r := radius()
 	var c := Vector2(0.0, -r * 0.92)
 	_draw_hair_back(c, r)
 	if not face_hidden:
@@ -101,25 +161,53 @@ func _draw_base_and_body() -> void:
 	draw_polyline(_closed(front), OUTLINE, 4.0, true)
 	draw_line(Vector2(-120, 180), Vector2(-120, 205), OUTLINE, 4.0)
 	draw_line(Vector2(120, 180), Vector2(120, 205), OUTLINE, 4.0)
-	# Body: a small suit, deliberately tiny next to the head
-	var body := PackedVector2Array([
-		Vector2(-70, 172), Vector2(-62, 70), Vector2(-40, 36), Vector2(40, 36),
-		Vector2(62, 70), Vector2(70, 172),
-	])
-	draw_colored_polygon(body, SUIT)
+	# Body: deliberately tiny next to the head.
+	var body := BodyShapes.outline(build.body_shape)
+	var textured := build.use_body_texture and body_texture != null
+	if textured:
+		draw_colored_polygon(body, Color.WHITE, BodyShapes.uvs(body), body_texture)
+	else:
+		draw_colored_polygon(body, build.body_color)
+		_draw_body_details(build.body_shape, build.body_color)
 	draw_polyline(_closed(body), OUTLINE, 4.0, true)
-	var shirt := PackedVector2Array([Vector2(-16, 36), Vector2(16, 36), Vector2(0, 80)])
-	draw_colored_polygon(shirt, Color.WHITE)
-	var tie := PackedVector2Array([Vector2(-6, 44), Vector2(6, 44), Vector2(9, 110), Vector2(0, 122), Vector2(-9, 110)])
-	draw_colored_polygon(tie, Color("#c0392b"))
-	draw_line(Vector2(-40, 36), Vector2(-8, 100), SUIT_LIGHT, 5.0)
-	draw_line(Vector2(40, 36), Vector2(8, 100), SUIT_LIGHT, 5.0)
+
+
+## Trim per body shape, tinted from the body color. Skipped for textured bodies.
+func _draw_body_details(shape: int, color: Color) -> void:
+	var light := color.lightened(0.18)
+	var dark := color.darkened(0.25)
+	match shape:
+		0:  # Suit: shirt, tie, lapels
+			draw_colored_polygon(PackedVector2Array([Vector2(-16, 36), Vector2(16, 36), Vector2(0, 80)]), Color.WHITE)
+			draw_colored_polygon(PackedVector2Array([Vector2(-6, 44), Vector2(6, 44), Vector2(9, 110), Vector2(0, 122), Vector2(-9, 110)]), Color("#c0392b"))
+			draw_line(Vector2(-40, 36), Vector2(-8, 100), light, 5.0)
+			draw_line(Vector2(40, 36), Vector2(8, 100), light, 5.0)
+		1:  # Hoodie: hood rim, pocket, strings
+			draw_arc(Vector2(0, 40), 34, 0.1, PI - 0.1, 16, dark, 8.0, true)
+			draw_rect(Rect2(-36, 118, 72, 34), dark)
+			draw_line(Vector2(-10, 46), Vector2(-12, 90), Color.WHITE, 3.0, true)
+			draw_line(Vector2(10, 46), Vector2(12, 90), Color.WHITE, 3.0, true)
+		2:  # T-shirt: collar and a star
+			draw_arc(Vector2(0, 36), 16, 0.0, PI, 12, dark, 5.0, true)
+			var star := PackedVector2Array()
+			for i in range(10):
+				var a := -PI / 2 + TAU * float(i) / 10.0
+				star.append(Vector2(0, 112) + Vector2.from_angle(a) * (20.0 if i % 2 == 0 else 9.0))
+			draw_colored_polygon(star, Color("#f1c40f"))
+		3:  # Robe: V collar and belt
+			draw_colored_polygon(PackedVector2Array([Vector2(-20, 36), Vector2(20, 36), Vector2(0, 76)]), light)
+			draw_rect(Rect2(-66, 112, 132, 12), Color("#f1c40f"))
+		4:  # Goat: a few tufts and a bell
+			for p in [Vector2(-40, 90), Vector2(30, 80), Vector2(-10, 140), Vector2(42, 140)]:
+				draw_arc(p, 9, PI, TAU, 8, dark, 3.0, true)
+			draw_circle(Vector2(0, 58), 10, GOLD)
+			draw_arc(Vector2(0, 58), 10, 0, TAU, 16, OUTLINE, 2.0, true)
 
 
 func _draw_neck() -> void:
 	# A coiled spring from the collar to the bottom of the head.
 	var from := Vector2(0, 40)
-	var to := bobble.offset + Vector2(0, -head_radius * 0.05).rotated(bobble.angle)
+	var to := bobble.offset + Vector2(0, -radius() * 0.05).rotated(bobble.angle)
 	var points := PackedVector2Array()
 	var coils := 7
 	var axis := to - from

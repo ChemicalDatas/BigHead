@@ -1,7 +1,8 @@
 class_name SavedBuild
 extends RefCounted
-## Stores the player's Head Builder choices in user:// as JSON.
-## On Linux that is ~/.local/share/godot/app_userdata/Big Head/head_build.json
+## Stores the player's bobblehead and scene style in user:// as JSON.
+## On Linux: ~/.local/share/godot/app_userdata/Big Head/head_build.json
+## On Windows: %APPDATA%\Godot\app_userdata\Big Head\head_build.json
 
 const PATH := "user://head_build.json"
 
@@ -10,23 +11,35 @@ func exists() -> bool:
 	return FileAccess.file_exists(PATH)
 
 
-func load_build() -> HeadBuild:
+func _read() -> Dictionary:
 	if not exists():
-		return null
-	var text := FileAccess.get_file_as_string(PATH)
-	var data: Variant = JSON.parse_string(text)
+		return {}
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(PATH))
 	if data is Dictionary:
-		return HeadBuild.from_dict(data)
+		# Iteration 1 saved the head as a flat dictionary.
+		if not data.has("head"):
+			return {"head": data}
+		return data
 	push_warning("Saved head build is unreadable; starting fresh.")
-	return null
+	return {}
 
 
-func save(build: HeadBuild) -> void:
+func load_build() -> HeadBuild:
+	var data := _read()
+	return HeadBuild.from_dict(data["head"]) if data.has("head") else null
+
+
+func load_style() -> SceneStyle:
+	var data := _read()
+	return SceneStyle.from_dict(data["style"]) if data.has("style") else SceneStyle.new()
+
+
+func save(build: HeadBuild, style: SceneStyle) -> void:
 	var file := FileAccess.open(PATH, FileAccess.WRITE)
 	if file == null:
 		push_error("Could not save head build: %s" % FileAccess.get_open_error())
 		return
-	file.store_string(JSON.stringify(build.to_dict(), "\t"))
+	file.store_string(JSON.stringify({"head": build.to_dict(), "style": style.to_dict()}, "\t"))
 
 
 func erase() -> void:

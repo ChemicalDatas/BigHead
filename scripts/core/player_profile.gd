@@ -6,6 +6,7 @@ extends RefCounted
 var display_name := ""
 var steam_id := 0
 var build: HeadBuild = null
+var style := SceneStyle.new()
 var steam_avatar: Texture2D = null
 
 

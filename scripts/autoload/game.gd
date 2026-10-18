@@ -1,38 +1,67 @@
 extends Node
-## Global wiring: picks adapters, holds the player's profile, routes scenes.
+## Global wiring: picks adapters, holds the player's profile, routes scenes,
+## turns game events into stats and achievements.
 ##
 ## Command-line options (put them after `--` when launching):
-##   --no-steam   skip Steam even if GodotSteam is installed (tests the fallback)
-##   --reset      forget the saved head build (tests the first launch)
-##   --reset-achievement   re-lock the dev achievement so the unlock can be tested again
+##   --no-steam              skip Steam even if GodotSteam is installed (tests the fallback)
+##   --reset                 forget the saved head, style and uploads (tests the first launch)
+##   --reset-achievement     re-lock the dev achievements so unlocks can be tested again
+##   --fake-friends=N        pretend N friends have Big Head (fireworks multiplier, until 2B)
 
 ## INTENTIONAL: the company name is "A. L.", not "A. I.". Do not correct it.
 const COMPANY_NAME := "Scapegoat A. L. LLC"
 
-## Valve's Spacewar test app until Big Head gets its own App ID (iteration 2).
+## Valve's Spacewar test app until Big Head gets its own App ID (iteration 2B).
 const DEV_APP_ID := 480
-## Spacewar has no BIG_HEAD achievement, so during development ours is mapped
-## onto one of Spacewar's test achievements. Iteration 2: empty this map.
-const DEV_ACHIEVEMENT_MAP := {"BIG_HEAD": "ACH_WIN_ONE_GAME"}
+## Iteration 2B: set to false, empty both maps below, and use the real App ID.
+const DEV_MODE := true
+## Spacewar only defines four test achievements, so four of ours stand in on them.
+## The rest are logged to the console while DEV_MODE is on.
+const DEV_ACHIEVEMENT_MAP := {
+	AchievementRules.BIG_HEAD: "ACH_WIN_ONE_GAME",
+	AchievementRules.ITS_A_PARTY: "ACH_WIN_100_GAMES",
+	AchievementRules.WHIPLASH: "ACH_TRAVEL_FAR_SINGLE",
+	AchievementRules.BOBBLE_BOOP: "ACH_TRAVEL_FAR_ACCUM",
+}
+## Spacewar test stats our counters borrow during development.
+const DEV_STAT_MAP := {
+	AchievementRules.STAT_CLICKS: "NumGames",
+	AchievementRules.STAT_FIREWORKS: "NumWins",
+}
 
 const SPLASH_SCENE := "res://scenes/splash.tscn"
 const BUILDER_SCENE := "res://scenes/head_builder.tscn"
 const REVEAL_SCENE := "res://scenes/reveal.tscn"
 
 signal steam_avatar_arrived
+signal friends_with_big_head_changed(count: int)
+## Emitted for every unlock (Steam shows its own popup; this is for logs and tests).
+signal achievement_unlocked(id: String)
 
 var identity: SteamIdentity
 var achievements: AchievementPort
+var stats: StatsPort
+var uploads := UploadStore.new()
 var saved_build := SavedBuild.new()
 var profile := PlayerProfile.new()
 var steam_available := false
+var friends_with_big_head := 0
+
+var _unlocked_this_session := {}
+var _fake_friends := -1
 
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
+	for arg in args:
+		if arg.begins_with("--fake-friends="):
+			_fake_friends = maxi(0, int(arg.get_slice("=", 1)))
+
 	if "--reset" in args:
 		saved_build.erase()
-		print("[game] Saved head build erased (--reset).")
+		uploads.erase(UploadStore.BODY)
+		uploads.erase(UploadStore.BACKGROUND)
+		print("[game] Saved head, style and uploads erased (--reset).")
 
 	identity = SteamIdentity.new()
 	identity.name = "SteamIdentity"
@@ -45,20 +74,30 @@ func _ready() -> void:
 		print("[game] Steam available: %s (%s)" % [steam_available, identity.init_message])
 
 	if steam_available:
-		achievements = SteamAchievements.new(identity.steam(), DEV_ACHIEVEMENT_MAP)
+		achievements = SteamAchievements.new(identity.steam(), DEV_ACHIEVEMENT_MAP if DEV_MODE else {}, DEV_MODE)
+		stats = SteamStats.new(identity.steam(), DEV_STAT_MAP if DEV_MODE else {}, not DEV_MODE)
 		if "--reset-achievement" in args:
-			for api_name in DEV_ACHIEVEMENT_MAP.values():
-				identity.steam().call("clearAchievement", api_name)
+			for id in AchievementRules.ALL:
+				identity.steam().call("clearAchievement", (achievements as SteamAchievements).api_name(id))
 			identity.steam().call("storeStats")
-			print("[game] Dev achievement cleared (--reset-achievement).")
+			print("[game] Dev achievements cleared (--reset-achievement).")
 		profile.display_name = identity.local_name()
 		profile.steam_id = identity.local_id()
 		identity.local_avatar_ready.connect(_on_local_avatar_ready)
 		identity.request_local_avatar()
 	else:
 		achievements = NullAchievements.new()
+		stats = LocalStats.new()
+
+	if _fake_friends >= 0:
+		_set_friends(_fake_friends)
+		print("[game] Pretending %d friends have Big Head (--fake-friends)." % _fake_friends)
+	elif steam_available:
+		identity.friends_with_achievement_counted.connect(_set_friends)
+		identity.count_friends_with_achievement((achievements as SteamAchievements).api_name(AchievementRules.BIG_HEAD))
 
 	profile.build = saved_build.load_build()
+	profile.style = saved_build.load_style()
 
 
 ## Where the splash goes next: the builder on first launch, else the reveal.
@@ -75,18 +114,38 @@ func banner_name() -> String:
 	return "Mystery Player"
 
 
-func save_build(build: HeadBuild) -> void:
+## Rockets per right-click: one of yours plus one per friend with Big Head.
+func rockets_per_click() -> int:
+	return 1 + friends_with_big_head
+
+
+func save_build(build: HeadBuild, style: SceneStyle) -> void:
 	profile.build = build
-	saved_build.save(build)
+	profile.style = style
+	saved_build.save(build, style)
 
 
-func report(event: String) -> void:
-	for id in AchievementRules.unlocks_for(event, steam_available):
+## Game events go here; see AchievementRules for the list.
+func report(event: String, data: Dictionary = {}) -> void:
+	var deltas := AchievementRules.stat_deltas(event, data)
+	for stat_name in deltas:
+		stats.add_int(stat_name, int(deltas[stat_name]))
+	var snapshot := stats.snapshot([AchievementRules.STAT_CLICKS, AchievementRules.STAT_FIREWORKS])
+	for id in AchievementRules.unlocks_for(event, data, snapshot, steam_available):
+		if _unlocked_this_session.has(id):
+			continue
+		_unlocked_this_session[id] = true
 		achievements.unlock(id)
+		achievement_unlocked.emit(id)
 
 
 func go_to(scene_path: String) -> void:
 	get_tree().change_scene_to_file(scene_path)
+
+
+func _set_friends(count: int) -> void:
+	friends_with_big_head = count
+	friends_with_big_head_changed.emit(count)
 
 
 func _on_local_avatar_ready(texture: Texture2D) -> void:
