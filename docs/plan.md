@@ -286,6 +286,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Builder button | "Play" |
 | Face cycle | Steam face 15 s, built face 45 s, repeating; face-only swap with no head kick; waits for a drag to end; confetti every 10 cycles (10 min); Customize can keep either face |
 | Eyes follow the cursor | Smoothed and capped; googly pupils move, dot and angry eyes shift, closed eyes and the Steam face tilt the head |
+| Dizzy stars | A Whiplash-speed fling sends a ring of stars around the head for 3 s; 30 s cooldown; visual only, so non-Steam players see it too |
 
 ### Sources
 

@@ -51,6 +51,11 @@ var _gaze := Vector2.ZERO
 ## Extra head tilt toward the cursor; drawing only, so it never disturbs the physics.
 var _look_tilt := 0.0
 
+## Dizzy stars circling the head: seconds left and total, 0 when off.
+var _stars_left := 0.0
+var _stars_total := 0.0
+var _stars_spin := 0.0
+
 var _pressing := false
 var _press_on_head := false
 var _press_position := Vector2.ZERO
@@ -84,7 +89,17 @@ func _physics_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_update_gaze(delta)
+	if _stars_left > 0.0:
+		_stars_left = maxf(_stars_left - delta, 0.0)
+		_stars_spin += delta * 3.2
 	queue_redraw()
+
+
+## Cartoon "seeing stars": a ring of stars orbits the head for `seconds`.
+func show_dizzy_stars(seconds: float) -> void:
+	_stars_total = seconds
+	_stars_left = seconds
+	_stars_spin = 0.0
 
 
 ## True when the current face has no eyes that can move: closed "Happy" eyes,
@@ -201,7 +216,34 @@ func _draw() -> void:
 		_draw_face(c, r)
 	_draw_hair_front(c, r)
 	_draw_accessory(c, r)
+	if _stars_left > 0.0:
+		_draw_dizzy_stars(c, r)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Five stars on a tilted ring around the top of the head. They fade in and
+## out at the ends, and the ones on the far side of the ring are smaller and
+## dimmer, so the ring reads as going around the head.
+func _draw_dizzy_stars(c: Vector2, r: float) -> void:
+	var elapsed := _stars_total - _stars_left
+	var fade := clampf(minf(elapsed / 0.25, _stars_left / 0.5), 0.0, 1.0)
+	var center := c + Vector2(0, -r * 1.05)
+	var count := 5
+	for i in count:
+		var a := _stars_spin + TAU * float(i) / count
+		var depth := (sin(a) + 1.0) * 0.5   # 0 = far side, 1 = near side
+		var p := center + Vector2(cos(a) * r * 1.1, sin(a) * r * 0.3)
+		var size := r * lerpf(0.13, 0.2, depth)
+		var color := Color("#ffd84a")
+		color.a = fade * lerpf(0.55, 1.0, depth)
+		var outline := OUTLINE
+		outline.a = color.a
+		var pts := PackedVector2Array()
+		for k in 10:
+			var ang := -PI / 2.0 + TAU * float(k) / 10.0 + _stars_spin * 0.8
+			pts.append(p + Vector2.from_angle(ang) * (size if k % 2 == 0 else size * 0.45))
+		draw_colored_polygon(pts, color)
+		draw_polyline(_closed(pts), outline, 3.0, true)
 
 
 func _draw_base_and_body() -> void:

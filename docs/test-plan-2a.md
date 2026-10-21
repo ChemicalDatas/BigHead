@@ -103,6 +103,9 @@ Run `godot --path . -- --fake-friends=19`.
 - [ ] Pressing on the head and moving pulls it away on the spring neck
 - [ ] Releasing a drag flings the head and it snaps back
 - [ ] A quick press without moving counts as a click, not a drag
+- [ ] A hard fling (Whiplash speed) sends a ring of stars around the head for about 3 seconds
+- [ ] Another hard fling within 30 seconds doesn't bring the stars back; one after 30 seconds does
+- [ ] A gentle release never shows stars
 - [ ] Right-click launches 20 rockets with an "x20" marker
 - [ ] Spamming right-click keeps a steady frame rate (capped at 80 rockets on screen)
 - [ ] With `--fake-friends=4`: 5 rockets and "x5"

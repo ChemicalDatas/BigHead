@@ -13,6 +13,10 @@ const AVATAR_TIMEOUT := 6.0      ## give up waiting for the Steam avatar after t
 const BANNER_TOP := 24.0
 const BANNER_CLEARANCE := 120.0  ## space reserved under the top edge for the banner
 const BASE_RADIUS := 125.0
+## Dizzy stars after a whiplash-speed fling: how long they circle, and how
+## long before another fling can bring them back.
+const STARS_SECONDS := 3.0
+const STARS_COOLDOWN := 30.0
 
 var _background: BackgroundView
 var _head: HeadView
@@ -22,6 +26,7 @@ var _banner: Banner
 var _buttons: HBoxContainer
 var _hint: Label
 var _playground := false
+var _last_stars_at := -1000.0
 var _moving_for := 0.0
 var _still_for := 0.0
 var _reported_bobbling := false
@@ -234,8 +239,15 @@ func _on_head_clicked(on_head: bool) -> void:
 
 
 func _on_drag_released(speed: float) -> void:
-	if _playground:
-		Game.report("drag_released", {"speed": speed})
+	if not _playground:
+		return
+	Game.report("drag_released", {"speed": speed})
+	# A whiplash-speed fling leaves the head seeing stars, at most once per cooldown.
+	if speed >= AchievementRules.WHIPLASH_SPEED:
+		var now := Time.get_ticks_msec() / 1000.0
+		if now - _last_stars_at >= STARS_COOLDOWN:
+			_last_stars_at = now
+			_head.show_dizzy_stars(STARS_SECONDS)
 
 
 func _process(delta: float) -> void:
