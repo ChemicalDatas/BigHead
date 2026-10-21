@@ -143,6 +143,8 @@ func _run_reveal() -> void:
 			# The punchline lands all at once: new face, confetti and banner together.
 			_confetti.burst()
 			await _slam_banner()
+			if has_build:
+				_run_face_cycle()
 		else:
 			push_warning("Steam avatar did not arrive; keeping the built head.")
 			await _slam_banner()
@@ -152,6 +154,40 @@ func _run_reveal() -> void:
 
 	Game.report("reveal_finished")
 	_playground = true
+
+
+## Steam players with a built head: the Steam face stays 15 s, the built face
+## 45 s, repeating, unless the face is locked in Customize. Swaps only change
+## the face (no kick), wait until a drag ends, and bring confetti back once
+## every 10 cycles. Runs on a Timer child so it stops when the scene closes.
+func _run_face_cycle() -> void:
+	var mode := Game.profile.style.face_mode
+	if mode == SceneStyle.FaceMode.KEEP_STEAM:
+		return
+	var timer := Timer.new()
+	timer.one_shot = true
+	add_child(timer)
+	var cycle := 0
+	while true:
+		timer.start(Game.STEAM_FACE_SECONDS * Game.face_time_scale)
+		await timer.timeout
+		await _wait_until_not_dragging()
+		_head.swap_face(false)
+		if mode == SceneStyle.FaceMode.KEEP_MINE:
+			return
+		timer.start(Game.OWN_FACE_SECONDS * Game.face_time_scale)
+		await timer.timeout
+		await _wait_until_not_dragging()
+		cycle += 1
+		_head.swap_face(true)
+		if cycle % Game.CONFETTI_EVERY_CYCLES == 0:
+			await _head.face_swapped
+			_confetti.burst()
+
+
+func _wait_until_not_dragging() -> void:
+	while _head.bobble.dragging:
+		await get_tree().process_frame
 
 
 func _wait_for_avatar() -> void:

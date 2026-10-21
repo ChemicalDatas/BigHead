@@ -284,6 +284,8 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Desktop buddy | In; no global click hooks |
 | No spoilers before the pop | Builder says "bobblehead", never "Big Head"; the banner sample shows only the name; the banner lands on the same beat as the pop |
 | Builder button | "Play" |
+| Face cycle | Steam face 15 s, built face 45 s, repeating; face-only swap with no head kick; waits for a drag to end; confetti every 10 cycles (10 min); Customize can keep either face |
+| Eyes follow the cursor | Smoothed and capped; googly pupils move, dot and angry eyes shift, closed eyes and the Steam face tilt the head |
 
 ### Sources
 

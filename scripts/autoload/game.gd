@@ -7,6 +7,7 @@ extends Node
 ##   --reset                 forget the saved head, style and uploads (tests the first launch)
 ##   --reset-achievement     re-lock the dev achievements so unlocks can be tested again
 ##   --fake-friends=N        pretend N friends have Big Head (fireworks multiplier, until 2B)
+##   --fast-faces            run the face swap cycle 10x faster (1.5 s / 4.5 s) for testing
 
 ## INTENTIONAL: the company name is "A. L.", not "A. I.". Do not correct it.
 const COMPANY_NAME := "Scapegoat A. L. LLC"
@@ -29,6 +30,13 @@ const DEV_STAT_MAP := {
 	AchievementRules.STAT_FIREWORKS: "NumWins",
 }
 
+## After the reveal, Steam players alternate faces: the Steam avatar for 15 s,
+## then their own face for 45 s, and so on (unless locked in Customize).
+const STEAM_FACE_SECONDS := 15.0
+const OWN_FACE_SECONDS := 45.0
+## Confetti returns once every this many full cycles (10 cycles = 10 minutes).
+const CONFETTI_EVERY_CYCLES := 10
+
 const SPLASH_SCENE := "res://scenes/splash.tscn"
 const BUILDER_SCENE := "res://scenes/head_builder.tscn"
 const REVEAL_SCENE := "res://scenes/reveal.tscn"
@@ -46,6 +54,8 @@ var saved_build := SavedBuild.new()
 var profile := PlayerProfile.new()
 var steam_available := false
 var friends_with_big_head := 0
+## 1.0 normally; 0.1 with --fast-faces.
+var face_time_scale := 1.0
 
 var _unlocked_this_session := {}
 var _fake_friends := -1
@@ -54,6 +64,9 @@ var _fake_friends := -1
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	_fake_friends = _parse_fake_friends(args)
+	if "--fast-faces" in args:
+		face_time_scale = 0.1
+		print("[game] Face swaps run 10x faster (--fast-faces).")
 
 	if "--reset" in args:
 		saved_build.erase()

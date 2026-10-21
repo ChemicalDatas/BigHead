@@ -15,7 +15,12 @@ const FONT_FILES: Array[String] = [
 	"res://assets/fonts/PressStart2P-Regular.ttf",
 ]
 
+## Steam players only: what the face does after the reveal.
+enum FaceMode { ALTERNATE, KEEP_STEAM, KEEP_MINE }
+const FACE_MODE_NAMES: Array[String] = ["Alternate", "Keep Steam face", "Keep my face"]
+
 var background := 0
+var face_mode: int = FaceMode.ALTERNATE
 ## True when the player uploaded a background image (the image lives in UploadStore).
 var use_background_image := false
 var banner_color := Color("#c0392b")
@@ -25,6 +30,10 @@ var banner_font := 0
 
 func cycle_background(step: int) -> void:
 	background = posmod(background + step, BACKGROUNDS.size())
+
+
+func cycle_face_mode(step: int) -> void:
+	face_mode = posmod(face_mode + step, FACE_MODE_NAMES.size())
 
 
 func cycle_font(step: int) -> void:
@@ -43,6 +52,7 @@ func to_dict() -> Dictionary:
 		"banner_color": banner_color.to_html(false),
 		"banner_text_color": banner_text_color.to_html(false),
 		"banner_font": banner_font,
+		"face_mode": face_mode,
 	}
 
 
@@ -53,4 +63,5 @@ static func from_dict(data: Dictionary) -> SceneStyle:
 	style.banner_color = Color.from_string(str(data.get("banner_color", "")), style.banner_color)
 	style.banner_text_color = Color.from_string(str(data.get("banner_text_color", "")), style.banner_text_color)
 	style.banner_font = posmod(int(data.get("banner_font", 0)), FONT_NAMES.size())
+	style.face_mode = posmod(int(data.get("face_mode", FaceMode.ALTERNATE)), FACE_MODE_NAMES.size())
 	return style

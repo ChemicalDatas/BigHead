@@ -20,6 +20,9 @@ App ID). The game runs as Valve's test app 480 (Spacewar) until then.
 - **Playground** after the reveal
   - Left-click nudges the head; click and **drag** to pull it, release to
     fling it.
+  - Steam players see their Steam face for 15 s, then their built face for
+    45 s, repeating; Customize → Head → Face can lock either one.
+  - The eyes follow the cursor; closed eyes and the Steam face tilt the head instead.
   - **Right-click** launches fireworks: one rocket of yours plus one for every
     Steam friend who has the Big Head achievement.
 
@@ -83,7 +86,8 @@ Editor → Run → Main Run Args.
 | `--reset` | Forget the saved head, style and uploads (first-launch flow) |
 | `--no-steam` | Ignore Steam even if it's available (fallback flow) |
 | `--reset-achievement` | Re-lock the test achievements so unlocks fire again |
-| `--fake-friends=N` | Pretend N friends have Big Head (try 4 and 19) |
+| `--fake-friends=N` | Pretend N friends have Big Head (try 4 and 19; `--fake-friends N` works too) |
+| `--fast-faces` | Run the face swap cycle 10x faster for testing |
 
 Example: `godot --path . -- --reset --fake-friends=19`
 

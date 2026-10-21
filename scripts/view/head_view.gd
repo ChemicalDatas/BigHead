@@ -6,6 +6,8 @@ extends Node2D
 ## The node's origin is the neck pivot. The head swings around it.
 
 signal popped
+## A face swap finished swapping (the new face is now showing).
+signal face_swapped(to_steam: bool)
 ## A left click that didn't turn into a drag. `on_head` is true when it hit the head.
 signal clicked(on_head: bool)
 ## A drag ended; `speed` is the cursor speed at release in pixels per second.
@@ -19,6 +21,11 @@ const GOLD := Color("#f2c037")
 
 ## Pixels the cursor must move while held before a press becomes a drag.
 const DRAG_THRESHOLD := 8.0
+
+## How quickly the eyes catch up with the cursor (higher = snappier).
+const GAZE_SMOOTHING := 8.0
+## Largest head tilt toward the cursor, for faces whose eyes can't move (radians).
+const MAX_LOOK_TILT := 0.12
 
 ## Head radius at head_size 1.0. The build's head_size multiplies it.
 @export var base_radius := 140.0
@@ -36,6 +43,13 @@ var face_hidden := false
 var face_scale := Vector2.ONE
 
 var bobble := BobbleState.new()
+
+## Eyes (or, for faces whose eyes can't move, the head) follow the cursor.
+var look_at_cursor := true
+## Where the eyes look: a direction with length 0..1 (1 = as far as they go), smoothed.
+var _gaze := Vector2.ZERO
+## Extra head tilt toward the cursor; drawing only, so it never disturbs the physics.
+var _look_tilt := 0.0
 
 var _pressing := false
 var _press_on_head := false
@@ -68,8 +82,33 @@ func _physics_process(delta: float) -> void:
 	bobble.step(delta)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_update_gaze(delta)
 	queue_redraw()
+
+
+## True when the current face has no eyes that can move: closed "Happy" eyes,
+## or the Steam avatar photo. Those faces tilt the head toward the cursor instead.
+func _looks_with_head() -> bool:
+	return (show_steam_face and steam_texture != null) or build.eyes == 2
+
+
+## Eases the gaze toward the cursor and caps how far it goes. The direction comes
+## from the cursor; the distance only sets how strongly they look (it saturates),
+## so a far-away cursor never pushes the eyes past their limit.
+func _update_gaze(delta: float) -> void:
+	var target := Vector2.ZERO
+	if look_at_cursor:
+		var r := radius()
+		var c := Vector2(0.0, -r * 0.92)
+		var in_head := (get_local_mouse_position() - bobble.offset).rotated(-bobble.angle - _look_tilt) - c
+		var dist := in_head.length()
+		if dist > 0.001:
+			target = in_head / dist * (dist / (dist + r * 1.5))
+	var blend := 1.0 - exp(-GAZE_SMOOTHING * delta)
+	_gaze = _gaze.lerp(target, blend)
+	var tilt_target := clampf(_gaze.x, -1.0, 1.0) * MAX_LOOK_TILT if _looks_with_head() else 0.0
+	_look_tilt = lerpf(_look_tilt, tilt_target, blend)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -111,9 +150,22 @@ func head_center() -> Vector2:
 	return bobble.offset + Vector2(0.0, -radius() * 0.92).rotated(bobble.angle)
 
 
-## Squash, swap the face for the Steam avatar, spring it out.
+## The reveal: squash, swap the face for the Steam avatar, spring it out with a
+## kick to the whole head.
 func pop_to_steam_face(texture: Texture2D) -> void:
 	steam_texture = texture
+	_swap_face_animated(true, true)
+
+
+## Later swaps between the Steam face and the built face. Only the face
+## squashes and springs; the head itself isn't kicked, so it can stay still.
+func swap_face(to_steam: bool) -> void:
+	if to_steam == show_steam_face or (to_steam and steam_texture == null):
+		return
+	_swap_face_animated(to_steam, false)
+
+
+func _swap_face_animated(to_steam: bool, kick: bool) -> void:
 	var tween := create_tween()
 	if not face_hidden:
 		tween.tween_property(self, "face_scale", Vector2(1.25, 0.7), 0.12) \
@@ -121,11 +173,13 @@ func pop_to_steam_face(texture: Texture2D) -> void:
 		tween.tween_property(self, "face_scale", Vector2(0.15, 0.15), 0.1) \
 			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_callback(func() -> void:
-		show_steam_face = true
+		show_steam_face = to_steam
 		face_hidden = false
 		face_scale = Vector2(0.15, 0.15)
-		bobble.pop(1.0)
-		popped.emit())
+		if kick:
+			bobble.pop(1.0)
+			popped.emit()
+		face_swapped.emit(to_steam))
 	tween.tween_property(self, "face_scale", Vector2.ONE, 0.7) \
 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
@@ -139,7 +193,7 @@ func _draw() -> void:
 		_draw_base_and_body()
 	_draw_neck()
 
-	draw_set_transform(bobble.offset, bobble.angle, Vector2.ONE)
+	draw_set_transform(bobble.offset, bobble.angle + _look_tilt, Vector2.ONE)
 	var r := radius()
 	var c := Vector2(0.0, -r * 0.92)
 	_draw_hair_back(c, r)
@@ -250,21 +304,28 @@ func _draw_face(c: Vector2, r: float) -> void:
 	_draw_mouth(c, r, s)
 
 
+## Each eye style looks at the cursor its own way (gaze is smoothed and capped
+## in _update_gaze):
+##   Googly : the pupil slides inside the white
+##   Dots   : the whole dot shifts a little
+##   Angry  : the dot shifts; the brow stays put
+##   Happy  : closed eyes don't move; the head tilts instead (_looks_with_head)
 func _draw_eyes(c: Vector2, r: float, s: Vector2) -> void:
 	for side in [-1.0, 1.0]:
 		var e := c + Vector2(side * r * 0.32, -r * 0.12) * s
 		match build.eyes:
 			0:  # Dots
-				draw_circle(e, r * 0.075 * s.y, OUTLINE)
-			1:  # Googly: pupils lag behind the bobble
+				draw_circle(e + _gaze * r * 0.045 * s, r * 0.075 * s.y, OUTLINE)
+			1:  # Googly: pupils look at the cursor and lag behind the bobble
 				draw_circle(e, r * 0.17 * s.y, Color.WHITE)
 				draw_arc(e, r * 0.17 * s.y, 0, TAU, 32, OUTLINE, 3.0, true)
-				var lag := Vector2(-bobble.angle * 28.0, 6.0 - bobble.offset_velocity.y * 0.01).limit_length(r * 0.08)
-				draw_circle(e + lag * s, r * 0.075 * s.y, OUTLINE)
+				var lag := Vector2(-bobble.angle * 28.0, 6.0 - bobble.offset_velocity.y * 0.01) * 0.4
+				var pupil := (_gaze * r * 0.085 + lag).limit_length(r * 0.09)
+				draw_circle(e + pupil * s, r * 0.075 * s.y, OUTLINE)
 			2:  # Happy (closed, curved)
 				draw_arc(e + Vector2(0, r * 0.05) * s, r * 0.1 * s.y, PI, TAU, 16, OUTLINE, 5.0, true)
 			3:  # Angry
-				draw_circle(e + Vector2(0, r * 0.03) * s, r * 0.07 * s.y, OUTLINE)
+				draw_circle(e + (Vector2(0, r * 0.03) + _gaze * r * 0.035) * s, r * 0.07 * s.y, OUTLINE)
 				var inner := Vector2(-side * r * 0.04, -r * 0.08) * s
 				var outer := Vector2(side * r * 0.16, -r * 0.17) * s
 				draw_line(e + inner, e + outer, OUTLINE, 6.0, true)

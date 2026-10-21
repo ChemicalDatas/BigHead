@@ -48,7 +48,8 @@ visible. Flags go after `--`.
 | `--reset` | Forget the saved head, style and uploads (first-launch flow) |
 | `--no-steam` | Ignore Steam even if it's available |
 | `--reset-achievement` | Re-lock the test achievements |
-| `--fake-friends=N` | Pretend N friends have Big Head |
+| `--fake-friends=N` | Pretend N friends have Big Head (`--fake-friends N` works too) |
+| `--fast-faces` | Run the face swap cycle 10x faster (1.5 s Steam face, 4.5 s your face) |
 
 Terminal lines worth watching: `[game] Steam available: …`, `[friends] …`,
 and `[achievements] UNLOCKED …`.
@@ -107,6 +108,24 @@ Run `godot --path . -- --fake-friends=19`.
 - [ ] With `--fake-friends=4`: 5 rockets and "x5"
 - [ ] With no flag: 1 rocket and no marker
 - [ ] The hint text at the bottom matches the rocket count each time
+
+## 5b. Face swaps and eyes
+
+Steam path (GodotSteam installed, Steam running). Run `godot --path . -- --fast-faces`
+so a full cycle takes 6 seconds instead of a minute.
+
+- [ ] After the reveal pop, the Steam face shows, then your built face, then Steam again, repeating
+- [ ] Swaps squash and spring the face only; the head itself doesn't jump
+- [ ] A swap that comes due while you're dragging the head waits until you let go
+- [ ] Confetti comes back on the swap after 10 full cycles (about 60 s with `--fast-faces`, 10 min normally), not on every swap
+- [ ] Customize → Head → Face = "Keep Steam face": the Steam face stays after the reveal
+- [ ] Face = "Keep my face": the Steam face pops at the reveal, then your face returns and stays
+- [ ] The Face setting only appears for Steam players
+- [ ] Googly eyes: pupils follow the cursor and never leave the whites
+- [ ] Dots and Angry eyes: the dots shift a little toward the cursor; Angry brows stay put
+- [ ] Happy (closed) eyes and the Steam face: the head tilts slightly toward the cursor instead
+- [ ] Eyes ease toward the cursor rather than snapping, and stop at a limit when the cursor is far away
+- [ ] Leaving the head alone with faces swapping still earns Level-Headed after 5 minutes
 
 ## 6. Achievements (Steam path)
 

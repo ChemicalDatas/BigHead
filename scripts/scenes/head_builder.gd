@@ -167,6 +167,10 @@ func _make_head_tab() -> Control:
 	row.add_child(_size_label)
 	tab.add_child(row)
 	_refresh_size_label()
+	# Steam players: alternate between the Steam face and this one, or lock either.
+	if Game.steam_available:
+		tab.add_child(_make_picker("face_mode", func() -> String: return SceneStyle.FACE_MODE_NAMES[_style.face_mode],
+			func(step: int) -> void: _style.cycle_face_mode(step)))
 	return tab
 
 
@@ -267,7 +271,7 @@ func _hint_label(text: String) -> Label:
 func _make_picker(key: String, read: Callable, step: Callable) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
-	var label_text: String = HeadBuild.CATEGORY_LABELS.get(key, {"background": "Background", "banner_font": "Font"}.get(key, key))
+	var label_text: String = HeadBuild.CATEGORY_LABELS.get(key, {"background": "Background", "banner_font": "Font", "face_mode": "Face"}.get(key, key))
 	row.add_child(_row_label(label_text))
 	var value := Label.new()
 	value.custom_minimum_size = Vector2(170, 0)
