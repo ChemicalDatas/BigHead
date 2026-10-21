@@ -140,14 +140,16 @@ func _run_reveal() -> void:
 		if Game.profile.has_steam_avatar():
 			_head.pop_to_steam_face(Game.profile.steam_avatar)
 			await _head.popped
+			# The punchline lands all at once: new face, confetti and banner together.
 			_confetti.burst()
-			await get_tree().create_timer(0.6).timeout
+			await _slam_banner()
 		else:
 			push_warning("Steam avatar did not arrive; keeping the built head.")
+			await _slam_banner()
 	else:
 		await get_tree().create_timer(1.0).timeout
+		await _slam_banner()
 
-	await _drop_banner()
 	Game.report("reveal_finished")
 	_playground = true
 
@@ -159,16 +161,22 @@ func _wait_for_avatar() -> void:
 		waited += get_process_delta_time()
 
 
-func _drop_banner() -> void:
+## The banner appears in place, oversized, and punches down to full size in a
+## quarter second, so it lands on the same beat as the pop.
+func _slam_banner() -> void:
 	_banner.visible = true
 	_banner.reset_size()
 	_layout()
+	_banner.position.y = BANNER_TOP
+	_banner.pivot_offset = _banner.size * 0.5
+	_banner.scale = Vector2(1.6, 1.6)
+	_banner.modulate.a = 0.0
 	var tween := create_tween()
-	tween.tween_property(_banner, "position:y", BANNER_TOP, 0.7) \
-		.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(_buttons, "modulate:a", 1.0, 0.5).set_delay(0.4)
+	tween.tween_property(_banner, "scale", Vector2.ONE, 0.25) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(_banner, "modulate:a", 1.0, 0.08)
+	tween.parallel().tween_property(_buttons, "modulate:a", 1.0, 0.5).set_delay(0.6)
 	await tween.finished
-	_head.bobble.nudge_toward(Vector2(0, -1), 0.5)
 
 
 func _unhandled_input(event: InputEvent) -> void:

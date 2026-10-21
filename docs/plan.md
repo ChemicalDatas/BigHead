@@ -282,6 +282,8 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Reveal | The Steam avatar pops out of the built head on every launch |
 | Reset face | Dropped, along with a Replay reveal button: the Steam avatar pops back at every launch |
 | Desktop buddy | In; no global click hooks |
+| No spoilers before the pop | Builder says "bobblehead", never "Big Head"; the banner sample shows only the name; the banner lands on the same beat as the pop |
+| Builder button | "Play" |
 
 ### Sources
 

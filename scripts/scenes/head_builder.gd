@@ -60,7 +60,7 @@ func _ready() -> void:
 	margin.add_child(column)
 
 	var title := Label.new()
-	title.text = "Build your Big Head"
+	title.text = "Build your bobblehead"
 	title.add_theme_font_size_override("font_size", 32)
 	column.add_child(title)
 
@@ -76,6 +76,7 @@ func _ready() -> void:
 		_name_edit.text = _build.player_name
 		_name_edit.custom_minimum_size = Vector2(0, 40)
 		_name_edit.add_theme_font_size_override("font_size", 20)
+		_name_edit.text_changed.connect(func(_t: String) -> void: _banner_sample.set_text(_sample_name()))
 		column.add_child(_name_edit)
 
 	var tabs := TabContainer.new()
@@ -116,6 +117,13 @@ func _fresh_build() -> HeadBuild:
 	var build := HeadBuild.new()
 	build.randomize_all(_rng)
 	return build
+
+
+## The banner sample shows only the player's name, never the punchline.
+func _sample_name() -> String:
+	if _name_edit != null and _name_edit.text.strip_edges() != "":
+		return _name_edit.text.strip_edges()
+	return Game.banner_name() if Game.steam_available else "Your name"
 
 
 ## The preview figure lives in the right part of the screen.
@@ -207,7 +215,7 @@ func _make_scene_tab() -> Control:
 
 	tab.add_child(_section_label("Banner"))
 	_banner_sample = Banner.new(20)
-	_banner_sample.set_text("Big Head")
+	_banner_sample.set_text(_sample_name())
 	_banner_sample.apply_style(_style)
 	_banner_sample.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	tab.add_child(_banner_sample)
