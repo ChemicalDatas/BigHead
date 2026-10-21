@@ -64,7 +64,7 @@ Run `godot --path . -- --reset --no-steam`.
 - [ ] Name box is visible; typing a ~20-character name updates the preview banner live
 - [ ] Head tab: every picker cycles both directions and nudges the head
 - [ ] Head size slider at 150%: the whole figure shrinks to fit and never hits the banner
-- [ ] "Become a Big Head": reveal shows the built head and typed name, with no pop
+- [ ] "Play": reveal shows the built head and typed name, with no pop
 - [ ] No `UNLOCKED` lines in the terminal
 
 ## 2. Body tab

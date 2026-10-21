@@ -97,7 +97,7 @@ func _ready() -> void:
 	var random_button := _make_button("Randomize")
 	random_button.pressed.connect(_on_randomize)
 	buttons.add_child(random_button)
-	var done_button := _make_button("Become a Big Head")
+	var done_button := _make_button("Play")
 	done_button.pressed.connect(_on_done)
 	buttons.add_child(done_button)
 
