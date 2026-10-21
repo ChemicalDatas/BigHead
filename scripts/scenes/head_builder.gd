@@ -4,7 +4,9 @@ extends Control
 ## Steam players get their Steam name.
 ##
 ## Tabs: Head (layers + size), Body (shape, color, texture), Scene (background, banner).
-## The whole screen is a live preview: background, bobblehead and banner.
+## The screen is a live preview of the background and bobblehead. The banner
+## itself only appears after the reveal; the Scene tab shows a small sample
+## of its colors and font.
 
 const BODY_TEMPLATE := "res://assets/body_template.png"
 const PREVIEW_BASE_RADIUS := 115.0
@@ -13,7 +15,7 @@ var _build: HeadBuild
 var _style: SceneStyle
 var _background: BackgroundView
 var _head: HeadView
-var _banner: Banner
+var _banner_sample: Banner
 var _value_labels := {}
 var _name_edit: LineEdit = null
 var _size_slider: HSlider
@@ -45,11 +47,6 @@ func _ready() -> void:
 	_head.body_texture = Game.uploads.texture(UploadStore.BODY)
 	add_child(_head)
 
-	_banner = Banner.new(30)
-	_banner.set_text("%s is a Big Head." % _preview_name())
-	_banner.apply_style(_style)
-	add_child(_banner)
-
 	var panel := PanelContainer.new()
 	panel.position = Vector2(32, 24)
 	panel.custom_minimum_size = Vector2(520, 0)
@@ -79,7 +76,6 @@ func _ready() -> void:
 		_name_edit.text = _build.player_name
 		_name_edit.custom_minimum_size = Vector2(0, 40)
 		_name_edit.add_theme_font_size_override("font_size", 20)
-		_name_edit.text_changed.connect(func(_t: String) -> void: _banner.set_text("%s is a Big Head." % _preview_name()); _layout())
 		column.add_child(_name_edit)
 
 	var tabs := TabContainer.new()
@@ -122,20 +118,12 @@ func _fresh_build() -> HeadBuild:
 	return build
 
 
-func _preview_name() -> String:
-	if _name_edit != null and _name_edit.text.strip_edges() != "":
-		return _name_edit.text.strip_edges()
-	return Game.banner_name() if Game.steam_available else "Your name"
-
-
-## The preview figure lives in the right part of the screen, under its banner.
+## The preview figure lives in the right part of the screen.
 func _layout() -> void:
 	var view := get_viewport_rect().size
 	var area_left := 580.0
 	var area := Rect2(area_left, 0, maxf(view.x - area_left, 300.0), view.y)
-	_banner.reset_size()
-	_banner.position = Vector2(area.get_center().x - _banner.size.x * 0.5, 20)
-	var top := _banner.position.y + _banner.size.y + 12.0
+	var top := 20.0
 	var bottom := view.y - 16.0
 	var needed := _head.extent_above_pivot() + _head.extent_below_pivot()
 	var fit := minf(1.0, (bottom - top) / needed)
@@ -218,6 +206,11 @@ func _make_scene_tab() -> Control:
 	tab.add_child(upload_row)
 
 	tab.add_child(_section_label("Banner"))
+	_banner_sample = Banner.new(20)
+	_banner_sample.set_text("Big Head")
+	_banner_sample.apply_style(_style)
+	_banner_sample.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	tab.add_child(_banner_sample)
 	_banner_color = _color_row(tab, "Banner color", _style.banner_color, func(c: Color) -> void: _style.banner_color = c)
 	_banner_text_color = _color_row(tab, "Text color", _style.banner_text_color, func(c: Color) -> void: _style.banner_text_color = c)
 	tab.add_child(_make_picker("banner_font", func() -> String: return SceneStyle.FONT_NAMES[_style.banner_font],
@@ -316,7 +309,7 @@ func _make_button(text: String) -> Button:
 ## Something changed: refresh the preview and give the head a little nudge.
 func _changed(direction: float) -> void:
 	_background.refresh()
-	_banner.apply_style(_style)
+	_banner_sample.apply_style(_style)
 	_layout()
 	if direction != 0.0:
 		_head.bobble.nudge_toward(Vector2(direction, -0.3), 0.6)

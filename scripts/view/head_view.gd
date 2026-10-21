@@ -296,7 +296,15 @@ func _draw_hair_back(c: Vector2, r: float) -> void:
 		draw_arc(c + Vector2(0, -r * 0.08), r * 1.06, 0, TAU, 48, OUTLINE, 4.0, true)
 
 
+## Hats sit on top of the head, so hair that would stick up through them is
+## tucked under instead ("hat hair"). Otherwise a tall hairstyle pokes out
+## behind the hat and reads as a second hat.
+func _wearing_hat() -> bool:
+	return build.accessory == 2 or build.accessory == 3  # party hat, crown
+
+
 func _draw_hair_front(c: Vector2, r: float) -> void:
+	var hat := _wearing_hat()
 	match build.hair:
 		1:  # Buzz
 			_draw_cap(c, r * 0.99, r * 0.84, PI * 1.08, PI * 1.92)
@@ -304,6 +312,8 @@ func _draw_hair_front(c: Vector2, r: float) -> void:
 			_draw_cap(c, r * 0.99, r * 0.82, PI * 1.05, PI * 1.95)
 			for i in range(7):
 				var a := lerpf(PI * 1.12, PI * 1.88, float(i) / 6.0)
+				if hat and a > PI * 1.3 and a < PI * 1.7:
+					continue  # the hat covers the top spikes
 				var dir := Vector2.from_angle(a)
 				var tangent := dir.orthogonal()
 				var root := c + dir * r * 0.9
@@ -322,6 +332,10 @@ func _draw_hair_front(c: Vector2, r: float) -> void:
 			draw_colored_polygon(pts, HAIR_COLOR)
 			draw_polyline(_closed(pts), OUTLINE, 3.0, true)
 		4:  # Mohawk
+			if hat:
+				# Tucked under the hat: only a red stripe of crest shows below the brim.
+				_draw_cap(c, r * 0.99, r * 0.86, PI * 1.38, PI * 1.62, Color("#c0392b"))
+				return
 			var pts := PackedVector2Array()
 			for i in range(7):
 				var a := lerpf(PI * 1.4, PI * 1.6, float(i) / 6.0)
@@ -402,14 +416,14 @@ func _face_polygon(shape: int, c: Vector2, r: float) -> PackedVector2Array:
 	return pts
 
 
-func _draw_cap(c: Vector2, outer: float, inner: float, a0: float, a1: float) -> void:
+func _draw_cap(c: Vector2, outer: float, inner: float, a0: float, a1: float, color := HAIR_COLOR) -> void:
 	var pts := PackedVector2Array()
 	var n := 24
 	for i in range(n + 1):
 		pts.append(c + Vector2.from_angle(lerpf(a0, a1, float(i) / n)) * outer)
 	for i in range(n, -1, -1):
 		pts.append(c + Vector2.from_angle(lerpf(a0, a1, float(i) / n)) * inner)
-	draw_colored_polygon(pts, HAIR_COLOR)
+	draw_colored_polygon(pts, color)
 	draw_polyline(_closed(pts), OUTLINE, 3.0, true)
 
 
