@@ -5,6 +5,41 @@ A checklist for verifying iteration 2A on Fedora. Tick items as they pass
 
 ## Setup
 
+### Running the game from a terminal
+
+Open Terminal (or Konsole on KDE) and move into the project, then update it:
+
+```
+cd ~/BigHead
+git pull
+```
+
+Pick the Godot command that matches how Godot is installed. Not sure? Run
+`flatpak list | grep -i godot`; if it prints a line, use the Flatpak command.
+
+| How Godot is installed | Command to start the game |
+| --- | --- |
+| Flatpak (Software Center / Flathub) | `flatpak run org.godotengine.Godot --path .` |
+| Downloaded binary | `~/Downloads/Godot_v4.6-stable_linux.x86_64 --path .` (wherever you saved it) |
+| On your PATH as `godot` | `godot --path .` |
+
+`--path .` runs the project in the current folder, without the editor. Game
+flags go after a lone `--`, and several can be combined:
+
+```
+flatpak run org.godotengine.Godot --path . -- --reset --fake-friends=19
+```
+
+The commands below are written as `godot --path . -- …`; swap in your own
+Godot command. Press Esc in the game, or Ctrl+C in the terminal, to stop it.
+
+**From the editor instead:** Project → Project Settings → turn on Advanced
+Settings → Editor → Run → **Main Run Args**. Type the game flags without the
+leading `--` (for example `--reset --fake-friends=19`), then press F5. Clear
+the field afterwards, or every run will reset your saved head.
+
+### Flags
+
 Run every test from a terminal in the project folder so the log lines are
 visible. Flags go after `--`.
 
