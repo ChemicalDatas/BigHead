@@ -53,9 +53,7 @@ var _fake_friends := -1
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
-	for arg in args:
-		if arg.begins_with("--fake-friends="):
-			_fake_friends = maxi(0, int(arg.get_slice("=", 1)))
+	_fake_friends = _parse_fake_friends(args)
 
 	if "--reset" in args:
 		saved_build.erase()
@@ -98,6 +96,25 @@ func _ready() -> void:
 
 	profile.build = saved_build.load_build()
 	profile.style = saved_build.load_style()
+
+
+## Reads --fake-friends=N or --fake-friends N. Returns -1 when the flag is absent
+## or unreadable (with a warning), so a typo never silently means "0 friends".
+func _parse_fake_friends(args: PackedStringArray) -> int:
+	for i in args.size():
+		var arg := args[i]
+		var value := ""
+		if arg.begins_with("--fake-friends="):
+			value = arg.get_slice("=", 1)
+		elif arg == "--fake-friends":
+			value = args[i + 1] if i + 1 < args.size() else ""
+		else:
+			continue
+		if value.is_valid_int() and int(value) >= 0:
+			return int(value)
+		push_warning("--fake-friends needs a whole number, like --fake-friends=4 (got \"%s\"); ignoring it." % value)
+		return -1
+	return -1
 
 
 ## Where the splash goes next: the builder on first launch, else the reveal.
