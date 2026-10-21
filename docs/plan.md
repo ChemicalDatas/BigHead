@@ -200,7 +200,7 @@ Decided on 2026-10-20 and not yet slotted into an iteration: almost everything i
 ### Face and reveal
 
 - **Reset face to default:** a button that puts the Steam avatar back as the face, replacing whatever face variant is set. Without Steam, it returns to the built face.
-- **Reveal pop** plays on first launch, and again only when triggered: a "Replay reveal" button in the playground, and automatically after "Reset face" (trying this to see how it feels). Returning from Customize goes straight to the playground.
+- **Reveal pop** plays on every launch: the Steam avatar pops out of the built head each time the game starts (changed on 2026-10-20; this is how the game already behaves). Returning from Customize goes straight to the playground.
 
 ### Desktop buddy (single player)
 
@@ -280,7 +280,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Shared custom accessories | Not planned; uploads stay local |
 | Rigs | Bobble, Balloon, Marionette; unlockable |
 | Arms | People bodies only, matching the clothes; animals (goat, unicorn) have four legs instead; part of the body template, plus a blank template |
-| Reveal | Plays on first launch, then via a Replay reveal button and after Reset face |
+| Reveal | The Steam avatar pops out of the built head on every launch |
 | Reset face | Button restores the Steam avatar as the face |
 | Desktop buddy | In; no global click hooks |
 
