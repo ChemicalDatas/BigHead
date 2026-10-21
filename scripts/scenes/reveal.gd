@@ -239,15 +239,35 @@ func _on_head_clicked(on_head: bool) -> void:
 
 
 func _on_drag_released(speed: float) -> void:
+	# Every fling is logged, so it's clear what speed it reached and why the
+	# stars did or didn't appear.
+	var fling := "[fx] Fling at %s px/s: " % _thousands(roundi(speed))
 	if not _playground:
+		print(fling + "ignored (the reveal hasn't finished)")
 		return
 	Game.report("drag_released", {"speed": speed})
 	# A whiplash-speed fling leaves the head seeing stars, at most once per cooldown.
-	if speed >= AchievementRules.WHIPLASH_SPEED:
-		var now := Time.get_ticks_msec() / 1000.0
-		if now - _last_stars_at >= STARS_COOLDOWN:
-			_last_stars_at = now
-			_head.show_dizzy_stars(STARS_SECONDS)
+	if speed < AchievementRules.WHIPLASH_SPEED:
+		print(fling + "no stars (needs %s px/s)" % _thousands(roundi(AchievementRules.WHIPLASH_SPEED)))
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	var wait := STARS_COOLDOWN - (now - _last_stars_at)
+	if wait > 0.0:
+		print(fling + "no stars (cooldown, %d s left)" % ceili(wait))
+		return
+	_last_stars_at = now
+	_head.show_dizzy_stars(STARS_SECONDS)
+	print(fling + "dizzy stars for %d s" % roundi(STARS_SECONDS))
+
+
+## 2640 -> "2,640"
+func _thousands(n: int) -> String:
+	var digits := str(absi(n))
+	var out := ""
+	while digits.length() > 3:
+		out = "," + digits.right(3) + out
+		digits = digits.left(digits.length() - 3)
+	return ("-" if n < 0 else "") + digits + out
 
 
 func _process(delta: float) -> void:
