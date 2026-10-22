@@ -130,12 +130,12 @@ Everything here builds and tests on app 480 while Steam partner verification run
 
 **1. Catalog and inventory**
 
-- [ ] Item catalog: every hair style, face shape, eyes, mouth, body and accessory as data (id, slot, base, variant, rarity, unlock source)
-- [ ] `InventoryPort` with a local adapter; starting set of two options each of hair style, face shape, eyes, mouth and body variant
-- [ ] Free color pickers for hair and skin
-- [ ] Locked items shown as locked in Customize
-- [ ] Customize gets a Cancel button, and Esc cancels instead of quitting the game
-- [ ] Test flag `--unlock-all`
+- [x] Item catalog: every hair style, face shape, eyes, mouth, body and accessory as data (id, slot, base, variant, rarity, unlock source)
+- [x] `InventoryPort` with a local adapter; starting set of two options each of hair style, face shape, eyes, mouth and body variant
+- [x] Free color pickers for hair and skin
+- [x] Locked items shown as locked in Customize
+- [x] Customize gets a Cancel button, and Esc cancels instead of quitting the game
+- [x] Test flag `--unlock-all`
 
 **2. Drops**
 
@@ -339,6 +339,9 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Before the App ID | Catalog and inventory, drops, content, rigs, desktop buddy, in that order; Steam-ready prep in parallel |
 | Customize Cancel | Cancel button; Esc cancels instead of quitting; built in roadmap step 1 |
 | Desktop buddy drops | Random time every 60 to 90 minutes while the buddy runs; regular pool, no super-rares; pauses at 12 waiting gift boxes |
+| Starting accessories | None; the first hat comes from a drop |
+| Starting set | Round and Oval faces, Buzz and Spiky hair, Dots and Googly eyes, Smile and Grin mouths, Suit and T-shirt bodies |
+| Locked items in Customize | Visible and previewable, marked "(locked)"; Play/Save disabled until every choice is owned |
 | Face cycle | Steam face 15 s, built face 45 s, repeating; face-only swap with no head kick; waits for a drag to end; confetti every 10 cycles (10 min); Customize can keep either face |
 | Eyes follow the cursor | Smoothed and capped; googly pupils move, dot and angry eyes shift, closed eyes and the Steam face tilt the head |
 | Dizzy stars | A Whiplash-speed fling sends a ring of stars around the head for 3 s; 30 s cooldown; visual only, so non-Steam players see it too |

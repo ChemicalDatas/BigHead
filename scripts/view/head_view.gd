@@ -14,7 +14,6 @@ signal clicked(on_head: bool)
 signal drag_released(speed: float)
 
 const OUTLINE := Color("#2a1d17")
-const HAIR_COLOR := Color("#3b2416")
 const BASE := Color("#c9a54a")
 const BONE := Color("#efe2c6")
 const GOLD := Color("#f2c037")
@@ -242,7 +241,7 @@ func _draw_dizzy_stars(c: Vector2, r: float) -> void:
 		for k in 10:
 			var ang := -PI / 2.0 + TAU * float(k) / 10.0 + _stars_spin * 0.8
 			pts.append(p + Vector2.from_angle(ang) * (size if k % 2 == 0 else size * 0.45))
-		draw_colored_polygon(pts, color)
+		draw_colored_polygon(pts, build.hair_color)
 		draw_polyline(_closed(pts), outline, 3.0, true)
 
 
@@ -261,12 +260,12 @@ func _draw_base_and_body() -> void:
 	var body := BodyShapes.outline(build.body_shape)
 	var textured := build.use_body_texture and body_texture != null
 	if build.body_shape == 4:
-		_draw_goat_legs(Color("#d9cdb6") if textured else build.body_color.darkened(0.12))
+		_draw_goat_legs(Color("#d9cdb6") if textured else build.body_paint().darkened(0.12))
 	if textured:
 		draw_colored_polygon(body, Color.WHITE, BodyShapes.uvs(body), body_texture)
 	else:
-		draw_colored_polygon(body, build.body_color)
-		_draw_body_details(build.body_shape, build.body_color)
+		draw_colored_polygon(body, build.body_paint())
+		_draw_body_details(build.body_shape, build.body_paint())
 	draw_polyline(_closed(body), OUTLINE, 4.0, true)
 
 
@@ -395,7 +394,7 @@ func _draw_mouth(c: Vector2, r: float, s: Vector2) -> void:
 
 func _draw_hair_back(c: Vector2, r: float) -> void:
 	if build.hair == 3:  # Mop: a big mass behind the face
-		draw_circle(c + Vector2(0, -r * 0.08), r * 1.06, HAIR_COLOR)
+		draw_circle(c + Vector2(0, -r * 0.08), r * 1.06, build.hair_color)
 		draw_arc(c + Vector2(0, -r * 0.08), r * 1.06, 0, TAU, 48, OUTLINE, 4.0, true)
 
 
@@ -421,7 +420,7 @@ func _draw_hair_front(c: Vector2, r: float) -> void:
 				var tangent := dir.orthogonal()
 				var root := c + dir * r * 0.9
 				var spike := PackedVector2Array([root + tangent * r * 0.12, root + dir * r * 0.42, root - tangent * r * 0.12])
-				draw_colored_polygon(spike, HAIR_COLOR)
+				draw_colored_polygon(spike, build.hair_color)
 				draw_polyline(spike, OUTLINE, 3.0, true)
 		3:  # Mop fringe with a wavy edge
 			var pts := PackedVector2Array()
@@ -432,12 +431,12 @@ func _draw_hair_front(c: Vector2, r: float) -> void:
 				var a := lerpf(PI * 1.0, PI * 2.0, float(i) / 24.0)
 				var wave := 0.62 + 0.08 * sin(float(i) * 1.6)
 				pts.append(c + Vector2.from_angle(a) * r * wave + Vector2(0, r * 0.12))
-			draw_colored_polygon(pts, HAIR_COLOR)
+			draw_colored_polygon(pts, build.hair_color)
 			draw_polyline(_closed(pts), OUTLINE, 3.0, true)
 		4:  # Mohawk
 			if hat:
 				# Tucked under the hat: only a red stripe of crest shows below the brim.
-				_draw_cap(c, r * 0.99, r * 0.86, PI * 1.38, PI * 1.62, Color("#c0392b"))
+				_draw_cap(c, r * 0.99, r * 0.86, PI * 1.38, PI * 1.62)
 				return
 			var pts := PackedVector2Array()
 			for i in range(7):
@@ -446,7 +445,7 @@ func _draw_hair_front(c: Vector2, r: float) -> void:
 				pts.append(c + Vector2.from_angle(a) * r * reach)
 			pts.append(c + Vector2.from_angle(PI * 1.6) * r * 0.8)
 			pts.append(c + Vector2.from_angle(PI * 1.4) * r * 0.8)
-			draw_colored_polygon(pts, Color("#c0392b"))
+			draw_colored_polygon(pts, build.hair_color)
 			draw_polyline(_closed(pts), OUTLINE, 3.0, true)
 
 
@@ -519,14 +518,14 @@ func _face_polygon(shape: int, c: Vector2, r: float) -> PackedVector2Array:
 	return pts
 
 
-func _draw_cap(c: Vector2, outer: float, inner: float, a0: float, a1: float, color := HAIR_COLOR) -> void:
+func _draw_cap(c: Vector2, outer: float, inner: float, a0: float, a1: float) -> void:
 	var pts := PackedVector2Array()
 	var n := 24
 	for i in range(n + 1):
 		pts.append(c + Vector2.from_angle(lerpf(a0, a1, float(i) / n)) * outer)
 	for i in range(n, -1, -1):
 		pts.append(c + Vector2.from_angle(lerpf(a0, a1, float(i) / n)) * inner)
-	draw_colored_polygon(pts, color)
+	draw_colored_polygon(pts, build.hair_color)
 	draw_polyline(_closed(pts), OUTLINE, 3.0, true)
 
 

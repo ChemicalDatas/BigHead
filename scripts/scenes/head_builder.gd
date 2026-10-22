@@ -3,10 +3,17 @@ extends Control
 ## required without Steam. Name entry only appears when Steam is unavailable;
 ## Steam players get their Steam name.
 ##
-## Tabs: Head (layers + size), Body (shape, color, texture), Scene (background, banner).
+## Tabs: Head (layers, colors, size), Body (shape, texture), Scene (background, banner).
 ## The screen is a live preview of the background and bobblehead. The banner
 ## itself only appears after the reveal; the Scene tab shows a small sample
 ## of its colors and font.
+##
+## Items the player doesn't own yet stay visible, marked "(locked)": they show
+## on the preview, but Play/Save is disabled until every choice is owned.
+##
+## From the playground (a head already exists) the buttons are Save and Cancel,
+## and Esc cancels. On first launch there's nothing to go back to: just Play.
+## Uploads are staged and only replace the saved images on Save.
 
 const BODY_TEMPLATE := "res://assets/body_template.png"
 const PREVIEW_BASE_RADIUS := 115.0
@@ -20,10 +27,15 @@ var _value_labels := {}
 var _name_edit: LineEdit = null
 var _size_slider: HSlider
 var _size_label: Label
-var _body_color: ColorPickerButton
+var _hair_color: ColorPickerButton
+var _skin_color: ColorPickerButton
 var _banner_color: ColorPickerButton
 var _banner_text_color: ColorPickerButton
 var _status: Label
+var _lock_note: Label
+var _done_button: Button
+## True when Customize was opened from the playground (a saved head exists).
+var _from_playground := false
 var _file_dialog: FileDialog
 var _pending_upload := ""      ## which upload the open dialog is for, or "template"
 var _rng := RandomNumberGenerator.new()
@@ -33,18 +45,20 @@ func _ready() -> void:
 	_rng.randomize()
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var profile := Game.profile
+	_from_playground = profile.has_build()
+	Game.uploads.discard()  # nothing staged from an earlier visit
 	_build = HeadBuild.from_dict(profile.build.to_dict()) if profile.has_build() else _fresh_build()
 	_style = SceneStyle.from_dict(profile.style.to_dict())
 
 	_background = BackgroundView.new()
 	_background.style = _style
-	_background.image = Game.uploads.texture(UploadStore.BACKGROUND)
+	_background.image = Game.uploads.preview_texture(UploadStore.BACKGROUND)
 	add_child(_background)
 
 	_head = HeadView.new()
 	_head.build = _build
 	_head.base_radius = PREVIEW_BASE_RADIUS
-	_head.body_texture = Game.uploads.texture(UploadStore.BODY)
+	_head.body_texture = Game.uploads.preview_texture(UploadStore.BODY)
 	add_child(_head)
 
 	var panel := PanelContainer.new()
@@ -92,15 +106,25 @@ func _ready() -> void:
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(_status)
 
+	_lock_note = Label.new()
+	_lock_note.add_theme_color_override("font_color", Color("#ffd27a"))
+	_lock_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_lock_note.custom_minimum_size = Vector2(440, 0)
+	column.add_child(_lock_note)
+
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
 	column.add_child(buttons)
 	var random_button := _make_button("Randomize")
 	random_button.pressed.connect(_on_randomize)
 	buttons.add_child(random_button)
-	var done_button := _make_button("Play")
-	done_button.pressed.connect(_on_done)
-	buttons.add_child(done_button)
+	_done_button = _make_button("Save" if _from_playground else "Play")
+	_done_button.pressed.connect(_on_done)
+	buttons.add_child(_done_button)
+	if _from_playground:
+		var cancel := _make_button("Cancel")
+		cancel.pressed.connect(_on_cancel)
+		buttons.add_child(cancel)
 
 	_file_dialog = FileDialog.new()
 	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -110,13 +134,22 @@ func _ready() -> void:
 
 	get_viewport().size_changed.connect(_layout)
 	_layout()
+	_update_locks()
 	_head.bobble.nudge_toward(Vector2(1, -0.4), 0.8)
 
 
 func _fresh_build() -> HeadBuild:
 	var build := HeadBuild.new()
-	build.randomize_all(_rng)
+	build.randomize_all(_rng, Game.inventory)
 	return build
+
+
+## Esc cancels Customize instead of quitting. On first launch there's nothing
+## to cancel back to, so Esc is left to the game (which quits).
+func _unhandled_input(event: InputEvent) -> void:
+	if _from_playground and event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		_on_cancel()
 
 
 ## The banner sample shows only the player's name, never the punchline.
@@ -146,8 +179,11 @@ func _layout() -> void:
 func _make_head_tab() -> Control:
 	var tab := _tab_box("Head")
 	for category in HeadBuild.CATEGORIES:
-		tab.add_child(_make_picker(category, func() -> String: return HeadBuild.option_label(category, _build.get_choice(category)),
-			func(step: int) -> void: _build.cycle(category, step)))
+		tab.add_child(_make_item_picker(category))
+		if category == "face_shape":
+			_skin_color = _color_row(tab, "Skin color", _build.skin, func(c: Color) -> void: _build.skin = c, HeadBuild.SKIN_PRESETS)
+		elif category == "hair":
+			_hair_color = _color_row(tab, "Hair color", _build.hair_color, func(c: Color) -> void: _build.hair_color = c, HeadBuild.HAIR_PRESETS)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	var label := _row_label("Head size")
@@ -176,12 +212,7 @@ func _make_head_tab() -> Control:
 
 func _make_body_tab() -> Control:
 	var tab := _tab_box("Body")
-	tab.add_child(_make_picker("body_shape", func() -> String: return HeadBuild.option_label("body_shape", _build.body_shape),
-		func(step: int) -> void:
-			_build.cycle("body_shape", step)
-			_build.body_color = HeadBuild.BODY_DEFAULT_COLORS[_build.body_shape]
-			_body_color.color = _build.body_color))
-	_body_color = _color_row(tab, "Body color", _build.body_color, func(c: Color) -> void: _build.body_color = c)
+	tab.add_child(_make_item_picker("body_shape"))
 
 	tab.add_child(_section_label("Your own texture"))
 	var upload_row := HBoxContainer.new()
@@ -267,8 +298,20 @@ func _hint_label(text: String) -> Label:
 	return label
 
 
-## A "<  value  >" row. `read` returns the value text; `step` changes it.
-func _make_picker(key: String, read: Callable, step: Callable) -> Control:
+## A picker for a catalog item: items the player doesn't own read "(locked)".
+func _make_item_picker(category: String) -> Control:
+	return _make_picker(category,
+		func() -> String:
+			var index := _build.get_choice(category)
+			var text := HeadBuild.option_label(category, index)
+			return text if _build.is_option_owned(category, index, Game.inventory) else text + " (locked)",
+		func(step: int) -> void: _build.cycle(category, step),
+		func() -> bool: return not _build.is_option_owned(category, _build.get_choice(category), Game.inventory))
+
+
+## A "<  value  >" row. `read` returns the value text; `step` changes it;
+## `is_locked` (optional) greys the value out.
+func _make_picker(key: String, read: Callable, step: Callable, is_locked := Callable()) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	var label_text: String = HeadBuild.CATEGORY_LABELS.get(key, {"background": "Background", "banner_font": "Font", "face_mode": "Face"}.get(key, key))
@@ -281,7 +324,10 @@ func _make_picker(key: String, read: Callable, step: Callable) -> Control:
 	prev.custom_minimum_size = Vector2(40, 36)
 	var next := _make_button(">")
 	next.custom_minimum_size = Vector2(40, 36)
-	var refresh := func() -> void: value.text = read.call()
+	var refresh := func() -> void:
+		value.text = read.call()
+		var locked: bool = is_locked.is_valid() and is_locked.call()
+		value.add_theme_color_override("font_color", Color("#8c8496") if locked else Color.WHITE)
 	prev.pressed.connect(func() -> void: step.call(-1); refresh.call(); _changed(-1.0))
 	next.pressed.connect(func() -> void: step.call(1); refresh.call(); _changed(1.0))
 	row.add_child(prev)
@@ -292,7 +338,7 @@ func _make_picker(key: String, read: Callable, step: Callable) -> Control:
 	return row
 
 
-func _color_row(parent: Control, text: String, color: Color, on_change: Callable) -> ColorPickerButton:
+func _color_row(parent: Control, text: String, color: Color, on_change: Callable, presets: Array[Color] = []) -> ColorPickerButton:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	row.add_child(_row_label(text))
@@ -300,6 +346,8 @@ func _color_row(parent: Control, text: String, color: Color, on_change: Callable
 	picker.color = color
 	picker.edit_alpha = false
 	picker.custom_minimum_size = Vector2(170, 34)
+	for preset in presets:
+		picker.get_picker().add_preset(preset)
 	picker.color_changed.connect(func(c: Color) -> void: on_change.call(c); _changed(0.0))
 	row.add_child(picker)
 	parent.add_child(row)
@@ -323,6 +371,7 @@ func _changed(direction: float) -> void:
 	_background.refresh()
 	_banner_sample.apply_style(_style)
 	_layout()
+	_update_locks()
 	if direction != 0.0:
 		_head.bobble.nudge_toward(Vector2(direction, -0.3), 0.6)
 
@@ -332,7 +381,8 @@ func _refresh_all() -> void:
 		(_value_labels[key] as Callable).call()
 	_size_slider.set_value_no_signal(_build.head_size)
 	_refresh_size_label()
-	_body_color.color = _build.body_color
+	_hair_color.color = _build.hair_color
+	_skin_color.color = _build.skin
 	_banner_color.color = _style.banner_color
 	_banner_text_color.color = _style.banner_text_color
 	_changed(0.0)
@@ -351,18 +401,43 @@ func _on_head_size_changed(value: float) -> void:
 		Game.report("head_size_maxed")
 
 
+## Play/Save only works when every choice is owned.
+func _update_locks() -> void:
+	var locked := _build.locked_categories(Game.inventory)
+	_done_button.disabled = not locked.is_empty()
+	if locked.is_empty():
+		_lock_note.text = ""
+	else:
+		var names: Array[String] = []
+		for category in locked:
+			names.append(HeadBuild.CATEGORY_LABELS[category].to_lower())
+		_lock_note.text = "Locked: %s. Find it in fireworks drops, or pick something you own." % ", ".join(names)
+
+
 func _on_randomize() -> void:
 	var keep_texture := _build.use_body_texture
-	_build.randomize_all(_rng)
+	_build.randomize_all(_rng, Game.inventory)
 	_build.use_body_texture = keep_texture
 	_refresh_all()
 	_head.bobble.nudge_toward(Vector2(_rng.randf_range(-1.0, 1.0), -1.0), 1.0)
 
 
 func _on_done() -> void:
+	if not _build.locked_categories(Game.inventory).is_empty():
+		return
 	if _name_edit != null:
 		_build.player_name = _name_edit.text.strip_edges().left(HeadBuild.MAX_NAME_LENGTH)
+	Game.uploads.commit()
 	Game.save_build(_build, _style)
+	# First launch plays the reveal; returning from Customize goes straight back.
+	Game.skip_reveal_once = _from_playground
+	Game.go_to(Game.REVEAL_SCENE)
+
+
+## Throws away every change, including staged uploads.
+func _on_cancel() -> void:
+	Game.uploads.discard()
+	Game.skip_reveal_once = true
 	Game.go_to(Game.REVEAL_SCENE)
 
 
@@ -394,14 +469,14 @@ func _on_file_selected(path: String) -> void:
 		import_upload(_pending_upload, path)
 
 
-## Copies a picked image into the game's storage and switches to it.
+## Stages a picked image (Save keeps it, Cancel drops it) and previews it.
 func import_upload(kind: String, path: String) -> void:
-	var error := Game.uploads.import_image(path, kind)
+	var error := Game.uploads.stage_import(path, kind)
 	if error != "":
 		_status.text = error
 		return
 	_status.text = ""
-	var texture := Game.uploads.texture(kind)
+	var texture := Game.uploads.preview_texture(kind)
 	if kind == UploadStore.BODY:
 		_head.body_texture = texture
 		_build.use_body_texture = true
@@ -412,7 +487,7 @@ func import_upload(kind: String, path: String) -> void:
 
 
 func _remove_upload(kind: String) -> void:
-	Game.uploads.erase(kind)
+	Game.uploads.stage_remove(kind)
 	if kind == UploadStore.BODY:
 		_head.body_texture = null
 		_build.use_body_texture = false

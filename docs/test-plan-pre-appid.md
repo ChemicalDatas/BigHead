@@ -45,13 +45,16 @@ if they change when the steps are built.
 
 ## 1. Catalog and inventory
 
-Status: **Not built yet**
+Status: **Built** (2026-10-22). The starting set is Round and Oval faces, Buzz
+and Spiky hair, Dots and Googly eyes, Smile and Grin mouths, Suit and T-shirt
+bodies, and no accessories.
 
 **Starting set** (run with `--reset --reset-inventory`)
 
 - [ ] Hair style, face shape, eyes, mouth and body each offer exactly two unlocked options
-- [ ] Every other option is visible but marked as locked, and can't be selected
-- [ ] Accessories start with "None" only (or the agreed starter set)
+- [ ] Every other option is visible, marked "(locked)" in grey, and shows on the preview
+- [ ] While a locked option is chosen, Play/Save is greyed out and a note says which part is locked
+- [ ] Accessories start with "None" only
 - [ ] Randomize only picks from unlocked options
 
 **Color pickers**

@@ -2,19 +2,26 @@
 
 Scapegoat A.L. LLC presents: become a bobblehead.
 
-**Current state: iteration 2A** (everything before Big Head has its own Steam
-App ID). The game runs as Valve's test app 480 (Spacewar) until then.
+**Current state: iteration 2A plus "Before the App ID" step 1** (catalog and
+inventory). The game runs as Valve's test app 480 (Spacewar) until Big Head
+has its own Steam App ID.
 
 ## What's in it
 
 - **Splash → Head Builder → Reveal.** Steam players watch their built face pop
   into their Steam avatar (hair and accessory stay on) and unlock "Big Head".
   Without Steam, the built head is the reveal and nothing unlocks.
+- **Collection.** New players own two options each of face shape, hair,
+  eyes, mouth and body, and no accessories. Everything else shows in the
+  builder as "(locked)" until it's unlocked (drops arrive in step 2).
 - **Builder tabs**
-  - *Head*: face shape, skin, hair, eyes, mouth, accessory, and a head-size
-    slider (80%–150%; maxing it unlocks Swelled Head).
-  - *Body*: Suit, Hoodie, T-shirt, Robe or Goat, any color, or your own
-    uploaded texture. "Save body template…" gives you a PNG to paint over.
+  - *Head*: face shape, skin color, hair, hair color, eyes, mouth, accessory,
+    and a head-size slider (80%–150%; maxing it unlocks Swelled Head).
+  - *Body*: Suit, Hoodie, T-shirt, Robe or Goat (each in its own colors), or
+    your own uploaded texture. "Save body template…" gives you a PNG to paint over.
+- **Customize** from the playground has Save and Cancel; Esc cancels. Cancel
+  throws away every change, uploads included. Either way you go straight back
+  to the playground without replaying the reveal.
   - *Scene*: five drawn backgrounds or your own uploaded image; banner color,
     text color and font.
 - **Playground** after the reveal
@@ -88,11 +95,14 @@ Editor → Run → Main Run Args.
 | `--reset-achievement` | Re-lock the test achievements so unlocks fire again |
 | `--fake-friends=N` | Pretend N friends have Big Head (try 4 and 19; `--fake-friends N` works too) |
 | `--fast-faces` | Run the face swap cycle 10x faster for testing |
+| `--unlock-all` | Treat every item as owned for this run (nothing is saved) |
+| `--reset-inventory` | Forget unlocked items; back to the starting set |
 
 Example: `godot --path . -- --reset --fake-friends=19`
 
 Saved data lives in `~/.local/share/godot/app_userdata/Big Head/` on Linux
-and `%APPDATA%\Godot\app_userdata\Big Head\` on Windows. Esc quits.
+and `%APPDATA%\Godot\app_userdata\Big Head\` on Windows. Esc quits from the
+playground and cancels in Customize.
 
 ## Exporting Linux and Windows builds
 

@@ -83,7 +83,7 @@ Run `godot --path . -- --reset --no-steam`.
 - [ ] All five bodies cycle (Suit, Hoodie, T-shirt, Robe, Goat), each with its own default color
 - [ ] Goat outline is smooth and it stands on four hooved legs
 - [ ] T-shirt has no star; Robe has no belt stripe
-- [ ] Changing the body color recolors the trim (suit tie and lapels, hoodie pocket, goat tufts)
+- [ ] Each body shows its own colors, with trim to match (suit tie and lapels, hoodie pocket, goat tufts); there's no body color picker any more
 - [ ] "Save body template…" writes a PNG with the outlines on it
 - [ ] A painted template uploads and covers the body inside its outline
 - [ ] A huge photo (over 4000 px) uploads fine
@@ -172,8 +172,6 @@ Install export templates first (Editor → Manage Export Templates).
 
 Already tracked, so they don't count as failures:
 
-- The customize screen has no Cancel, and Esc quits the game
-- Returning from Customize replays the full reveal
 - Script errors on Kinoite, pending the error text and Godot version
 
 ## Findings

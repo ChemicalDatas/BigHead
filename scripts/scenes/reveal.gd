@@ -135,6 +135,11 @@ func _update_hint() -> void:
 func _run_reveal() -> void:
 	var has_build := Game.profile.has_build()
 
+	if Game.skip_reveal_once:
+		Game.skip_reveal_once = false
+		_enter_playground_directly()
+		return
+
 	if has_build:
 		_head.bobble.nudge_toward(Vector2(1, -0.5), 1.1)
 
@@ -159,6 +164,26 @@ func _run_reveal() -> void:
 
 	Game.report("reveal_finished")
 	_playground = true
+
+
+## Back from Customize: no pop, no wait. The head, banner and buttons are
+## already in place, and the face cycle starts again from the Steam face
+## (or stays on the player's own face if that's locked in).
+func _enter_playground_directly() -> void:
+	var profile := Game.profile
+	var steam_face := Game.steam_available and profile.has_steam_avatar()
+	if steam_face:
+		_head.steam_texture = profile.steam_avatar
+		_head.face_hidden = false
+		_head.show_steam_face = profile.style.face_mode != SceneStyle.FaceMode.KEEP_MINE or not profile.has_build()
+	_banner.visible = true
+	_banner.reset_size()
+	_layout()
+	_banner.position.y = BANNER_TOP
+	_buttons.modulate.a = 1.0
+	_playground = true
+	if steam_face and profile.has_build() and profile.style.face_mode == SceneStyle.FaceMode.ALTERNATE:
+		_run_face_cycle()
 
 
 ## Steam players with a built head: the Steam face stays 15 s, the built face

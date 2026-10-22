@@ -8,6 +8,8 @@ extends Node
 ##   --reset-achievement     re-lock the dev achievements so unlocks can be tested again
 ##   --fake-friends=N        pretend N friends have Big Head (fireworks multiplier, until 2B)
 ##   --fast-faces            run the face swap cycle 10x faster (1.5 s / 4.5 s) for testing
+##   --unlock-all            treat every catalog item as owned for this run
+##   --reset-inventory       forget unlocked items; back to the starting set
 
 ## INTENTIONAL: the company name is "A.L.", not "A.I.". Do not correct it.
 const COMPANY_NAME := "Scapegoat A.L. LLC"
@@ -50,6 +52,10 @@ var identity: SteamIdentity
 var achievements: AchievementPort
 var stats: StatsPort
 var uploads := UploadStore.new()
+var inventory: InventoryPort
+## Set when leaving Customize (Save or Cancel): the next reveal scene skips
+## straight to the playground instead of replaying the pop.
+var skip_reveal_once := false
 var saved_build := SavedBuild.new()
 var profile := PlayerProfile.new()
 var steam_available := false
@@ -73,6 +79,13 @@ func _ready() -> void:
 		uploads.erase(UploadStore.BODY)
 		uploads.erase(UploadStore.BACKGROUND)
 		print("[game] Saved head, style and uploads erased (--reset).")
+	if "--reset-inventory" in args:
+		LocalInventory.erase()
+		print("[game] Inventory back to the starting set (--reset-inventory).")
+	inventory = LocalInventory.new()
+	if "--unlock-all" in args:
+		inventory = UnlockAllInventory.new(inventory)
+		print("[game] Every item unlocked for this run (--unlock-all).")
 
 	identity = SteamIdentity.new()
 	identity.name = "SteamIdentity"
@@ -109,6 +122,10 @@ func _ready() -> void:
 
 	profile.build = saved_build.load_build()
 	profile.style = saved_build.load_style()
+	if profile.has_build():
+		var fixed := profile.build.sanitize(inventory)
+		if not fixed.is_empty():
+			print("[game] Saved head used locked items (%s); switched to owned ones." % ", ".join(fixed))
 
 
 ## Reads --fake-friends=N or --fake-friends N. Returns -1 when the flag is absent
