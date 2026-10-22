@@ -38,6 +38,7 @@ godot --path . -- --reset --unlock-all
 | `--unlock-all` | Treat every catalog item as owned (step 1) |
 | `--reset-inventory` | Forget unlocked items and go back to the starting set (step 1) |
 | `--drop-rate=N` | Chance of a drop per right-click, 0 to 1, e.g. `--drop-rate=1` drops every click (step 2) |
+| `--fast-timed-drops` | Desktop buddy timed drops every few seconds instead of 60 to 90 minutes (step 5) |
 
 `--reset-inventory` and `--drop-rate` are proposed names; this file is updated
 if they change when the steps are built.
@@ -165,7 +166,9 @@ Status: **Not built yet**
 - [ ] On Wayland (KDE/Kinoite): eyes follow the cursor near the buddy, and drift idly otherwise
 - [ ] The buddy never reacts to clicks in other apps
 - [ ] The buddy can be closed and the normal game reopened
-- [ ] While the buddy runs, a drop happens about every 20 minutes (a gift box for a new item, confetti for one you own)
+- [ ] While the buddy runs, a drop happens at a random time every 60 to 90 minutes (a gift box for a new item, confetti for one you own)
+- [ ] Timed drops never give super-rares
+- [ ] With 12 gift boxes waiting, timed drops stop until some are collected
 - [ ] A timed-drop gift box on the desktop can be clicked even though the rest of the window lets clicks through
 
 ## Parallel track: Steam-ready prep
