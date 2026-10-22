@@ -83,15 +83,20 @@ bodies, and no accessories.
 
 ## 2. Drops
 
-Status: **Not built yet**
+Status: **Built** (2026-10-22). Drop chance is 1 in 20 right-clicks; the
+super-rare roll is 1 in 500 but has nothing in its pool until the unicorn set
+arrives in step 3. Drops start once the reveal has finished.
 
 Run with `--drop-rate=1` so every right-click drops something, then again
 without the flag to check normal rarity.
 
 - [ ] A right-click rolls once for a drop, however many rockets launch (`--fake-friends=19` doesn't drop 20 items)
-- [ ] A new item falls as a gift box; clicking it adds the item to your collection
+- [ ] A new item falls as a gift box and lands beside the bobblehead's stand, not on it or on other boxes
+- [ ] Clicking a box opens it, adds the item, and shows "New: <item>!" under the banner
+- [ ] Clicking a box doesn't also nudge the head
 - [ ] An item you already own bursts into confetti instead of a gift box
 - [ ] An unclicked gift box stays on screen until you quit, and is gone on the next launch
+- [ ] Unclicked boxes are still there after a trip to Customize and back
 - [ ] Newly unlocked items appear as unlocked in Customize straight away
 - [ ] As the collection fills up, new items come noticeably less often (more confetti, fewer boxes)
 - [ ] Super-rare items never drop from the normal pool; they only come from their own separate roll

@@ -2,8 +2,8 @@
 
 Scapegoat A.L. LLC presents: become a bobblehead.
 
-**Current state: iteration 2A plus "Before the App ID" step 1** (catalog and
-inventory). The game runs as Valve's test app 480 (Spacewar) until Big Head
+**Current state: iteration 2A plus "Before the App ID" steps 1 and 2**
+(catalog and inventory, drops). The game runs as Valve's test app 480 (Spacewar) until Big Head
 has its own Steam App ID.
 
 ## What's in it
@@ -13,7 +13,11 @@ has its own Steam App ID.
   Without Steam, the built head is the reveal and nothing unlocks.
 - **Collection.** New players own two options each of face shape, hair,
   eyes, mouth and body, and no accessories. Everything else shows in the
-  builder as "(locked)" until it's unlocked (drops arrive in step 2).
+  builder as "(locked)" until it's unlocked.
+- **Drops.** Each right-click in the playground has a 1 in 20 chance of a
+  drop. A new item falls as a gift box; click it to unlock the item. An item
+  you already own bursts into confetti instead. Unclicked boxes are lost when
+  you quit.
 - **Builder tabs**
   - *Head*: face shape, skin color, hair, hair color, eyes, mouth, accessory,
     and a head-size slider (80%–150%; maxing it unlocks Swelled Head).
@@ -97,6 +101,7 @@ Editor → Run → Main Run Args.
 | `--fast-faces` | Run the face swap cycle 10x faster for testing |
 | `--unlock-all` | Treat every item as owned for this run (nothing is saved) |
 | `--reset-inventory` | Forget unlocked items; back to the starting set |
+| `--drop-rate=N` | Drop chance per right-click, 0 to 1 (`--drop-rate=1` drops every click) |
 
 Example: `godot --path . -- --reset --fake-friends=19`
 

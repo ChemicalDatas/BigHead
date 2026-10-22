@@ -89,6 +89,22 @@ static func rarity(_id: String) -> Rarity:
 	return Rarity.COMMON
 
 
+## A player-facing name for an item: "Mop hair", "Party hat", "Hoodie".
+static func display_name(id: String) -> String:
+	var parts := id.split("/")
+	var slot := parts[0]
+	var base: int = (BASES[slot] as Array).find(parts[1])
+	if base < 0:
+		return id
+	var name := label(slot, base)
+	match slot:
+		"face_shape": return "%s face" % name
+		"hair": return "%s hair" % name
+		"eyes": return "%s eyes" % name
+		"mouth": return "%s mouth" % name
+	return name
+
+
 static func body_color(base: int, variant: int) -> Color:
 	var variants: Array = BODY_COLORS[base]
 	return variants[clampi(variant, 0, variants.size() - 1)]

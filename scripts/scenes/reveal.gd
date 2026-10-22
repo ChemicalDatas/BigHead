@@ -21,6 +21,9 @@ const STARS_COOLDOWN := 30.0
 var _background: BackgroundView
 var _head: HeadView
 var _confetti: Confetti
+## Gift boxes and drop confetti live on their own layer above the head.
+var _drops: Node2D
+var _toast: Label
 var _fireworks: Fireworks
 var _banner: Banner
 var _buttons: HBoxContainer
@@ -61,6 +64,8 @@ func _ready() -> void:
 	add_child(_confetti)
 	_fireworks = Fireworks.new()
 	add_child(_fireworks)
+	_drops = Node2D.new()
+	add_child(_drops)
 
 	_banner = Banner.new(48)
 	_banner.apply_style(profile.style)
@@ -83,6 +88,7 @@ func _ready() -> void:
 
 	get_viewport().size_changed.connect(_layout)
 	_layout()
+	_restore_waiting_gifts()
 	_run_reveal()
 
 
@@ -256,6 +262,119 @@ func launch_fireworks(at: Vector2) -> void:
 	_fireworks.launch(at, count)
 	if _playground:
 		Game.report("fireworks_launched", {"count": count})
+		_roll_drop(at)
+
+
+# --------------------------------------------------------------------------
+# Drops
+# --------------------------------------------------------------------------
+
+## One roll per right-click, whatever the rocket count. The result shows up
+## when the first rocket bursts: a gift box for a new item, confetti for an
+## item the player already owns.
+func _roll_drop(at: Vector2) -> void:
+	var result := Game.roll_drop()
+	if result.kind == DropRules.Kind.NOTHING:
+		return
+	get_tree().create_timer(0.85).timeout.connect(_show_drop.bind(result.kind, result.item_id, result.super_rare, at))
+
+
+func _show_drop(kind: DropRules.Kind, item_id: String, super_rare: bool, at: Vector2) -> void:
+	if kind == DropRules.Kind.DUPLICATE:
+		_burst_confetti(at, 70)
+		return
+	_spawn_gift(item_id, super_rare, at, false)
+
+
+func _spawn_gift(item_id: String, super_rare: bool, at: Vector2, landed: bool) -> void:
+	var view := get_viewport_rect().size
+	var box := GiftBox.new()
+	box.item_id = item_id
+	box.super_rare = super_rare
+	box.floor_y = view.y - 64.0
+	box.target_x = _free_floor_x(at.x)
+	box.position = Vector2(box.target_x if landed else clampf(at.x, 70.0, view.x - 70.0), box.floor_y if landed else at.y)
+	box.opened.connect(_on_gift_opened.bind(box))
+	_drops.add_child(box)
+
+
+## A floor spot near `x` that keeps clear of the bobblehead's stand, the
+## corner hint and buttons, and other boxes.
+func _free_floor_x(x: float) -> float:
+	const SPACING := 76.0
+	var view := get_viewport_rect().size
+	var stand_half := 150.0 * _head.scale.x
+	var lo := 300.0
+	var hi := view.x - 300.0
+	var taken: Array[float] = []
+	for child in _drops.get_children():
+		if child is GiftBox:
+			taken.append((child as GiftBox).target_x)
+	var side := -1.0 if x < _head.position.x else 1.0
+	var spot := clampf(x, lo, hi)
+	if absf(spot - _head.position.x) < stand_half + SPACING * 0.5:
+		spot = _head.position.x + side * (stand_half + SPACING * 0.5)
+	for attempt in 40:
+		var clear := true
+		for other in taken:
+			if absf(other - spot) < SPACING:
+				clear = false
+				break
+		if clear and spot >= lo and spot <= hi:
+			return spot
+		spot += side * SPACING
+		if spot > hi or spot < lo:
+			side = -side
+			spot = _head.position.x + side * (stand_half + SPACING * 0.5)
+	return clampf(x, lo, hi)
+
+
+## Boxes still waiting from earlier (e.g. before a trip to Customize) are
+## already on the floor.
+func _restore_waiting_gifts() -> void:
+	var view := get_viewport_rect().size
+	var gifts := Game.waiting_gifts()
+	var i := 0
+	for item_id in gifts:
+		var x := view.x * (0.2 + 0.6 * fmod(0.37 * float(i) + 0.13, 1.0))
+		_spawn_gift(item_id, gifts[item_id], Vector2(x, 0.0), true)
+		i += 1
+
+
+func _on_gift_opened(item_id: String, box: GiftBox) -> void:
+	var is_new := Game.open_gift(item_id)
+	_burst_confetti(box.global_position + Vector2(0, -30), 50)
+	_show_toast(("New: %s!" if is_new else "Already yours: %s") % Catalog.display_name(item_id))
+
+
+func _burst_confetti(at: Vector2, amount: int) -> void:
+	var burst := Confetti.new()
+	burst.amount = amount
+	burst.position = at
+	_drops.add_child(burst)
+	burst.burst()
+	get_tree().create_timer(2.5).timeout.connect(burst.queue_free)
+
+
+func _show_toast(text: String) -> void:
+	if is_instance_valid(_toast):
+		_toast.queue_free()
+	_toast = Label.new()
+	_toast.text = text
+	_toast.add_theme_font_size_override("font_size", 30)
+	_toast.add_theme_color_override("font_color", Color("#ffe066"))
+	_toast.add_theme_color_override("font_outline_color", Color("#2a1d17"))
+	_toast.add_theme_constant_override("outline_size", 8)
+	add_child(_toast)
+	_toast.reset_size()
+	var view := get_viewport_rect().size
+	# Just under the banner, clear of the head.
+	_toast.position = Vector2((view.x - _toast.size.x) * 0.5, _banner.position.y + _banner.size.y + 14.0)
+	var label := _toast
+	var tween := label.create_tween()
+	tween.tween_property(label, "position:y", label.position.y + 12.0, 2.2)
+	tween.parallel().tween_property(label, "modulate:a", 0.0, 0.8).set_delay(1.4)
+	tween.tween_callback(label.queue_free)
 
 
 func _on_head_clicked(on_head: bool) -> void:

@@ -139,9 +139,9 @@ Everything here builds and tests on app 480 while Steam partner verification run
 
 **2. Drops**
 
-- [ ] One roll per right-click; a new item falls as a gift box to click, an owned item bursts into confetti
-- [ ] Super-rares on their own separate roll; unclicked gift boxes are lost at quit
-- [ ] Test flag `--drop-rate=N`
+- [x] One roll per right-click; a new item falls as a gift box to click, an owned item bursts into confetti
+- [x] Super-rares on their own separate roll; unclicked gift boxes are lost at quit
+- [x] Test flag `--drop-rate=N`
 
 **3. Content**
 
@@ -342,6 +342,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Starting accessories | None; the first hat comes from a drop |
 | Starting set | Round and Oval faces, Buzz and Spiky hair, Dots and Googly eyes, Smile and Grin mouths, Suit and T-shirt bodies |
 | Locked items in Customize | Visible and previewable, marked "(locked)"; Play/Save disabled until every choice is owned |
+| Drop chances | 1 in 20 right-clicks for the regular pool; 1 in 500 for the separate super-rare roll (tunable) |
 | Face cycle | Steam face 15 s, built face 45 s, repeating; face-only swap with no head kick; waits for a drag to end; confetti every 10 cycles (10 min); Customize can keep either face |
 | Eyes follow the cursor | Smoothed and capped; googly pupils move, dot and angry eyes shift, closed eyes and the Steam face tilt the head |
 | Dizzy stars | A Whiplash-speed fling sends a ring of stars around the head for 3 s; 30 s cooldown; visual only, so non-Steam players see it too |

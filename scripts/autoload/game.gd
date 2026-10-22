@@ -10,6 +10,7 @@ extends Node
 ##   --fast-faces            run the face swap cycle 10x faster (1.5 s / 4.5 s) for testing
 ##   --unlock-all            treat every catalog item as owned for this run
 ##   --reset-inventory       forget unlocked items; back to the starting set
+##   --drop-rate=N           chance of a drop per right-click, 0 to 1 (default 0.05)
 
 ## INTENTIONAL: the company name is "A.L.", not "A.I.". Do not correct it.
 const COMPANY_NAME := "Scapegoat A.L. LLC"
@@ -56,6 +57,13 @@ var inventory: InventoryPort
 ## Set when leaving Customize (Save or Cancel): the next reveal scene skips
 ## straight to the playground instead of replaying the pop.
 var skip_reveal_once := false
+## Chance of a regular drop per right-click (--drop-rate overrides it).
+var drop_rate := DropRules.DEFAULT_DROP_RATE
+## Items in gift boxes on screen, not yet clicked: item id -> super-rare flag.
+## Kept here (not in the scene) so boxes survive a trip to Customize; lost at
+## quit, by design.
+var _waiting_in_boxes := {}
+var _drop_rng := RandomNumberGenerator.new()
 var saved_build := SavedBuild.new()
 var profile := PlayerProfile.new()
 var steam_available := false
@@ -70,6 +78,8 @@ var _fake_friends := -1
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	_fake_friends = _parse_fake_friends(args)
+	_drop_rng.randomize()
+	_parse_drop_rate(args)
 	if "--fast-faces" in args:
 		face_time_scale = 0.1
 		print("[game] Face swaps run 10x faster (--fast-faces).")
@@ -145,6 +155,46 @@ func _parse_fake_friends(args: PackedStringArray) -> int:
 		push_warning("--fake-friends needs a whole number, like --fake-friends=4 (got \"%s\"); ignoring it." % value)
 		return -1
 	return -1
+
+
+## Reads --drop-rate=N (or --drop-rate N), a chance from 0 to 1.
+func _parse_drop_rate(args: PackedStringArray) -> void:
+	for i in args.size():
+		var value := ""
+		if args[i].begins_with("--drop-rate="):
+			value = args[i].get_slice("=", 1)
+		elif args[i] == "--drop-rate":
+			value = args[i + 1] if i + 1 < args.size() else ""
+		else:
+			continue
+		if value.is_valid_float() and float(value) >= 0.0 and float(value) <= 1.0:
+			drop_rate = float(value)
+			print("[game] Drop chance per right-click: %s (--drop-rate)." % value)
+		else:
+			push_warning("--drop-rate needs a number from 0 to 1, like --drop-rate=1 (got \"%s\"); ignoring it." % value)
+		return
+
+
+## One right-click's drop roll. A new item is held "in a box" until opened.
+func roll_drop() -> DropRules.Result:
+	var result := DropRules.roll(_drop_rng, drop_rate, func(id: String) -> bool:
+		return inventory.owns(id) or _waiting_in_boxes.has(id))
+	if result.kind == DropRules.Kind.NEW_ITEM:
+		_waiting_in_boxes[result.item_id] = result.super_rare
+	return result
+
+
+## Gift boxes still waiting to be clicked: item id -> super-rare flag.
+func waiting_gifts() -> Dictionary:
+	return _waiting_in_boxes.duplicate()
+
+
+## The player clicked a gift box: the item is theirs.
+func open_gift(item_id: String) -> bool:
+	_waiting_in_boxes.erase(item_id)
+	var is_new := inventory.grant(item_id)
+	print("[drops] Unlocked %s%s" % [Catalog.display_name(item_id), "" if is_new else " (already owned)"])
+	return is_new
 
 
 ## Where the splash goes next: the builder on first launch, else the reveal.
