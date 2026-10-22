@@ -14,6 +14,16 @@ cd ~/BigHead
 git pull
 ```
 
+**After every `git pull`, refresh Godot's class cache once** (use your own Godot
+command). Skipping this after new scripts arrive causes `SCRIPT ERROR: Parse Error`
+lines as soon as the builder opens:
+
+```
+godot --path . --headless --import
+```
+
+Opening the project in the editor once does the same thing.
+
 Pick the Godot command that matches how Godot is installed. Not sure? Run
 `flatpak list | grep -i godot`; if it prints a line, use the Flatpak command.
 

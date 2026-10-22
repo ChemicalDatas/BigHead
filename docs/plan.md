@@ -122,6 +122,57 @@ Iteration 2A builds everything on test app 480; the App ID only changes configur
 - **Upload handling:** files are copied into `user://` and downscaled to about 2048 px. The native file picker goes through the desktop portal on Fedora, so it works with Flatpak Godot too.
 - **Uploads stay local:** in iteration 3, friends see your preset body and background, not uploaded images, unless moderation or Steam Workshop is added later.
 
+## Before the App ID: roadmap
+
+Everything here builds and tests on app 480 while Steam partner verification runs (agreed on 2026-10-22). The detailed rules for each item are in the Backlog section further down; the test checklist is `docs/test-plan-pre-appid.md`.
+
+### Main track, in order
+
+**1. Catalog and inventory**
+
+- [ ] Item catalog: every hair style, face shape, eyes, mouth, body and accessory as data (id, slot, base, variant, rarity, unlock source)
+- [ ] `InventoryPort` with a local adapter; starting set of two options each of hair style, face shape, eyes, mouth and body variant
+- [ ] Free color pickers for hair and skin
+- [ ] Locked items shown as locked in Customize
+- [ ] Customize gets a Cancel button, and Esc cancels instead of quitting the game
+- [ ] Test flag `--unlock-all`
+
+**2. Drops**
+
+- [ ] One roll per right-click; a new item falls as a gift box to click, an owned item bursts into confetti
+- [ ] Super-rares on their own separate roll; unclicked gift boxes are lost at quit
+- [ ] Test flag `--drop-rate=N`
+
+**3. Content**
+
+- [ ] Four variants per accessory base and body base: same shape, different colors and patterns
+- [ ] Wizard hat
+- [ ] Unicorn set: head, rainbow hair, body with rainbow tail; unicorn horn hat with four variants (the single-player variant can drop now; the three multiplayer variants arrive with iteration 3)
+- [ ] Arms on people bodies; goat and unicorn stand on four legs
+- [ ] Body template and blank template updated with arms and legs
+
+**4. Rigs**
+
+- [ ] Balloon rig, with the Pop Goes the Head achievement
+- [ ] Marionette rig (needs the arms from step 3)
+
+**5. Desktop buddy**
+
+- [ ] Transparent click-through window with the bobblehead; eyes follow the cursor where the platform allows
+
+### Parallel track: ready for 2B
+
+- [ ] Achievements sheet: API name, display name, description and icons for every achievement (check Valve's icon size first)
+- [ ] Stat definitions, a draft Rich Presence file, and the Steam Cloud file list
+- [ ] Store description draft and suggested tags
+- [ ] Gameplay screenshots at 1920 × 1080, after steps 3 and 4
+- [ ] Capsule art: an artist brief, or placeholders
+- [ ] Windows build tested under Proton
+
+### Open
+
+- Kinoite script errors: probably the stale class cache that `godot --path . --headless --import` fixed on Fedora; still to confirm on Kinoite.
+
 ## Iteration 2B: after the App ID
 
 Iteration 2B is configuration and store work; the only code change is removing the dev mappings.
@@ -171,7 +222,7 @@ Non-Steam players stay single-player: multiplayer requires Steam, so built-only 
 
 ## Backlog: collection, rigs and desktop buddy
 
-Decided on 2026-10-20 and not yet slotted into an iteration: almost everything is earned through play, nothing is traded, and the bobblehead gains new rigs and a desktop mode.
+Decided on 2026-10-20 and now scheduled in the "Before the App ID" roadmap above: almost everything is earned through play, nothing is traded, and the bobblehead gains new rigs and a desktop mode.
 
 ### Catalog and drops
 
@@ -270,7 +321,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Platforms | Linux and Windows |
 | Color pickers | Hair and skin only; body color comes from unlocked variants or an upload |
 | Starting set | Two options each of hair, face shape, eyes, mouth, body variant |
-| Variants | Four per accessory and body base; wizard hat added |
+| Variants | Four per accessory and body base; same shape, different colors and patterns; wizard hat added |
 | Drops | One roll per click; duplicates burst into confetti, new items fall as a gift box |
 | Pity timer | None |
 | Super-rares | Separate roll, out of the regular pool |
@@ -284,6 +335,8 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Desktop buddy | In; no global click hooks |
 | No spoilers before the pop | Builder says "bobblehead", never "Big Head"; the banner sample shows only the name; the banner lands on the same beat as the pop |
 | Builder button | "Play" |
+| Before the App ID | Catalog and inventory, drops, content, rigs, desktop buddy, in that order; Steam-ready prep in parallel |
+| Customize Cancel | Cancel button; Esc cancels instead of quitting; built in roadmap step 1 |
 | Face cycle | Steam face 15 s, built face 45 s, repeating; face-only swap with no head kick; waits for a drag to end; confetti every 10 cycles (10 min); Customize can keep either face |
 | Eyes follow the cursor | Smoothed and capped; googly pupils move, dot and angry eyes shift, closed eyes and the Steam face tilt the head |
 | Dizzy stars | A Whiplash-speed fling sends a ring of stars around the head for 3 s; 30 s cooldown; visual only, so non-Steam players see it too |
