@@ -165,6 +165,8 @@ Status: **Not built yet**
 - [ ] On Wayland (KDE/Kinoite): eyes follow the cursor near the buddy, and drift idly otherwise
 - [ ] The buddy never reacts to clicks in other apps
 - [ ] The buddy can be closed and the normal game reopened
+- [ ] While the buddy runs, a drop happens about every 20 minutes (a gift box for a new item, confetti for one you own)
+- [ ] A timed-drop gift box on the desktop can be clicked even though the rest of the window lets clicks through
 
 ## Parallel track: Steam-ready prep
 

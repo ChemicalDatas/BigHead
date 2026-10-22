@@ -159,6 +159,7 @@ Everything here builds and tests on app 480 while Steam partner verification run
 **5. Desktop buddy**
 
 - [ ] Transparent click-through window with the bobblehead; eyes follow the cursor where the platform allows
+- [ ] Timed drops: while the desktop buddy runs, a drop happens about every 20 minutes (details to settle: exact or random timing, which pool, cap on waiting boxes)
 
 ### Parallel track: ready for 2B
 
@@ -337,6 +338,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Builder button | "Play" |
 | Before the App ID | Catalog and inventory, drops, content, rigs, desktop buddy, in that order; Steam-ready prep in parallel |
 | Customize Cancel | Cancel button; Esc cancels instead of quitting; built in roadmap step 1 |
+| Desktop buddy drops | A drop about every 20 minutes while the desktop buddy runs (added 2026-10-22) |
 | Face cycle | Steam face 15 s, built face 45 s, repeating; face-only swap with no head kick; waits for a drag to end; confetti every 10 cycles (10 min); Customize can keep either face |
 | Eyes follow the cursor | Smoothed and capped; googly pupils move, dot and angry eyes shift, closed eyes and the Steam face tilt the head |
 | Dizzy stars | A Whiplash-speed fling sends a ring of stars around the head for 3 s; 30 s cooldown; visual only, so non-Steam players see it too |
