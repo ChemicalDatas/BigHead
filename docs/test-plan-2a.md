@@ -61,7 +61,7 @@ and `[achievements] UNLOCKED …`.
 
 Run `godot --path . -- --reset --no-steam`.
 
-- [ ] Splash shows "Scapegoat A. L. LLC", then the builder
+- [ ] Splash shows "Scapegoat A.L. LLC", then the builder
 - [ ] Name box is visible; typing a ~20-character name updates the preview banner live
 - [ ] Head tab: every picker cycles both directions and nudges the head
 - [ ] Head size slider at 150%: the whole figure shrinks to fit and never hits the banner

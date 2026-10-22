@@ -9,8 +9,8 @@ extends Node
 ##   --fake-friends=N        pretend N friends have Big Head (fireworks multiplier, until 2B)
 ##   --fast-faces            run the face swap cycle 10x faster (1.5 s / 4.5 s) for testing
 
-## INTENTIONAL: the company name is "A. L.", not "A. I.". Do not correct it.
-const COMPANY_NAME := "Scapegoat A. L. LLC"
+## INTENTIONAL: the company name is "A.L.", not "A.I.". Do not correct it.
+const COMPANY_NAME := "Scapegoat A.L. LLC"
 
 ## Valve's Spacewar test app until Big Head gets its own App ID (iteration 2B).
 const DEV_APP_ID := 480

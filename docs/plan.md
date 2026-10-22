@@ -6,7 +6,7 @@ Exported from the plan doc on 2026-10-20. This file is a snapshot; the living pl
 
 Big Head is a Godot 4.6+ gag game: it turns the player into a bobblehead under a banner reading "\<name> is a Big Head" and awards the Steam achievement "Big Head". It ships in three iterations, each building on the same architecture so nothing is rewritten.
 
-- **Company name:** the splash reads "Scapegoat A. L. LLC". The "A. L." is intentional. Store it as one constant with a do-not-correct comment, and use the same wording on the store page and Steamworks partner fields.
+- **Company name:** the splash reads "Scapegoat A.L. LLC". The "A.L." is intentional. Store it as one constant with a do-not-correct comment, and use the same wording on the store page and Steamworks partner fields.
 - **Iteration 1 (prototype):** splash, Steam identity, Head Builder, reveal with the pop, bobble physics, the "Big Head" achievement.
 - **Iteration 2 (Steam release):** 2A on test app 480 (bundled GodotSteam, drag, fireworks, customization), then 2B after the App ID (Steamworks setup, Rich Presence, Steam Cloud, store page).
 - **Iteration 3 (social):** friends shelf, lobbies, bobblehead interaction, leaderboard, full achievement set, room builder idea.
@@ -40,7 +40,7 @@ Iteration 1 delivers the whole gag end to end on Steam test App ID 480 (Spacewar
 
 ### Splash
 
-- Shows "Scapegoat A. L. LLC".
+- Shows "Scapegoat A.L. LLC".
 - Initializes GodotSteam during the splash, using `steam_appid.txt` (480 in development).
 - Routes the player: first launch or Steam failure goes to the Head Builder; otherwise straight to the reveal.
 
@@ -243,13 +243,13 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 - **Asynchronous avatar:** never assume it is loaded; the pop covers the wait.
 - **Overlay in the editor:** the Steam overlay does not show when running from the editor with the Forward+ renderer. Test achievement popups in an exported build or with the Compatibility renderer.
 - **Version coupling:** GodotSteam versions track Steamworks SDK versions. Pin one and upgrade deliberately.
-- **Name "correction":** "A. L." looks like a typo to reviewers and tools. Keep the do-not-correct comment.
+- **Name "correction":** "A.L." looks like a typo to reviewers and tools. Keep the do-not-correct comment.
 
 ### Decisions log
 
 | Decision | Choice |
 | --- | --- |
-| Splash name | "Scapegoat A. L. LLC", intentional |
+| Splash name | "Scapegoat A.L. LLC", intentional |
 | Identity source | GodotSteam in-client SDK, not the Steam Web API |
 | Steam failure | Fallback to the Head Builder |
 | Builder access | First launch, then optional from a menu |

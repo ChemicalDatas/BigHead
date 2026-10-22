@@ -1,6 +1,6 @@
 # Big Head
 
-Scapegoat A. L. LLC presents: become a bobblehead.
+Scapegoat A.L. LLC presents: become a bobblehead.
 
 **Current state: iteration 2A** (everything before Big Head has its own Steam
 App ID). The game runs as Valve's test app 480 (Spacewar) until then.
@@ -133,4 +133,4 @@ assets/
   Steam Cloud for `head_build.json` and `uploads/`.
 - Store page, AI-content survey ("none"), build uploads.
 
-Note: "Scapegoat A. L. LLC" is intentional. Do not change "A. L." to "A. I.".
+Note: "Scapegoat A.L. LLC" is intentional. Do not change "A.L." to "A.I.".
