@@ -40,6 +40,13 @@ const ACCESSORIES := {
 		{"base": Color("#1f7a4d"), "pattern": "dots", "accent": Color("#9be3b8"), "trim": Color("#d8dde3")},
 		{"base": Color("#1d1530"), "pattern": "zigzag", "accent": Color("#7b4bd8"), "trim": Color("#b48cff")},
 	],
+	# The spiral is drawn in `accent`. #1 drops in single player; #2-#4 are multiplayer-only.
+	"unicorn_horn": [
+		{"base": Color("#f2c037"), "pattern": "spiral", "accent": Color("#fff2a8")},
+		{"base": Color("#f4eefc"), "pattern": "spiral", "accent": Color("#b9a3ec")},
+		{"base": Color("#ff9ecf"), "pattern": "spiral", "accent": Color("#ffffff")},
+		{"base": Color("#2b2335"), "pattern": "spiral", "accent": Color("#9b6bff")},
+	],
 }
 
 const BODIES := {
@@ -72,6 +79,13 @@ const BODIES := {
 		{"base": Color("#8a5a3b"), "pattern": ""},
 		{"base": Color("#2b2522"), "pattern": ""},
 		{"base": Color("#ece4d4"), "pattern": "spots", "accent": Color("#8a5a3b")},
+	],
+	# Trim colors the hooves. The rainbow tail is the same on every style.
+	"unicorn": [
+		{"base": Color("#f7f3fa"), "pattern": "", "trim": Color("#f2c037")},
+		{"base": Color("#c9b6f2"), "pattern": "", "trim": Color("#cfd6dd")},
+		{"base": Color("#ffc4dd"), "pattern": "stars", "accent": Color("#ffffff"), "trim": Color("#e84393")},
+		{"base": Color("#2a2450"), "pattern": "stars", "accent": Color("#f7d046"), "trim": Color("#f7d046")},
 	],
 }
 

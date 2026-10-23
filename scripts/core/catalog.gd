@@ -13,21 +13,21 @@ extends RefCounted
 const SLOTS: Array[String] = ["face_shape", "hair", "eyes", "mouth", "body", "accessory"]
 
 const BASES := {
-	"face_shape": ["round", "oval", "square", "egg"],
-	"hair": ["bald", "buzz", "spiky", "mop", "mohawk"],
+	"face_shape": ["round", "oval", "square", "egg", "unicorn"],
+	"hair": ["bald", "buzz", "spiky", "mop", "mohawk", "rainbow"],
 	"eyes": ["dots", "googly", "happy", "angry"],
 	"mouth": ["smile", "grin", "oh", "flat"],
-	"body": ["suit", "hoodie", "tshirt", "robe", "goat"],
-	"accessory": ["glasses", "party_hat", "crown", "goat_horns", "wizard_hat"],
+	"body": ["suit", "hoodie", "tshirt", "robe", "goat", "unicorn"],
+	"accessory": ["glasses", "party_hat", "crown", "goat_horns", "wizard_hat", "unicorn_horn"],
 }
 
 const LABELS := {
-	"face_shape": ["Round", "Oval", "Square", "Egg"],
-	"hair": ["Bald", "Buzz", "Spiky", "Mop", "Mohawk"],
+	"face_shape": ["Round", "Oval", "Square", "Egg", "Unicorn"],
+	"hair": ["Bald", "Buzz", "Spiky", "Mop", "Mohawk", "Rainbow mane"],
 	"eyes": ["Dots", "Googly", "Happy", "Angry"],
 	"mouth": ["Smile", "Grin", "Oh", "Flat"],
-	"body": ["Suit", "Hoodie", "T-shirt", "Robe", "Goat"],
-	"accessory": ["Glasses", "Party hat", "Crown", "Goat horns", "Wizard hat"],
+	"body": ["Suit", "Hoodie", "T-shirt", "Robe", "Goat", "Unicorn"],
+	"accessory": ["Glasses", "Party hat", "Crown", "Goat horns", "Wizard hat", "Unicorn horn"],
 }
 
 ## Variants per base.
@@ -45,9 +45,23 @@ const STARTING_SET: Array[String] = [
 ## chosen style (#1-#4) of each.
 const STARTING_STYLED := {"body": ["suit", "tshirt"]}
 
-## Rarity tiers. Super-rares (the unicorn set, step 3) roll separately from the
-## regular drop pool.
-enum Rarity { COMMON, SUPER_RARE }
+## Rarity tiers.
+##   COMMON       the regular drop pool
+##   SUPER_RARE   the unicorn set: its own 1-in-500 roll (DropRules)
+##   MULTIPLAYER  the rarest: unicorn horns #2-#4, which only drop in
+##                multiplayer (iteration 3). No single-player pool has them.
+enum Rarity { COMMON, SUPER_RARE, MULTIPLAYER }
+
+## The unicorn set. Every style of the unicorn body counts; only horn #1 drops
+## in single player.
+const SUPER_RARE_ITEMS: Array[String] = [
+	"face_shape/unicorn", "hair/rainbow",
+	"body/unicorn/0", "body/unicorn/1", "body/unicorn/2", "body/unicorn/3",
+	"accessory/unicorn_horn/0",
+]
+const MULTIPLAYER_ITEMS: Array[String] = [
+	"accessory/unicorn_horn/1", "accessory/unicorn_horn/2", "accessory/unicorn_horn/3",
+]
 
 
 ## The starting items for a new player, with random styles for STARTING_STYLED.
@@ -88,7 +102,11 @@ static func all_ids() -> Array[String]:
 	return ids
 
 
-static func rarity(_id: String) -> Rarity:
+static func rarity(id: String) -> Rarity:
+	if id in SUPER_RARE_ITEMS:
+		return Rarity.SUPER_RARE
+	if id in MULTIPLAYER_ITEMS:
+		return Rarity.MULTIPLAYER
 	return Rarity.COMMON
 
 
@@ -102,7 +120,7 @@ static func display_name(id: String) -> String:
 	var name := label(slot, base)
 	match slot:
 		"face_shape": return "%s face" % name
-		"hair": return "%s hair" % name
+		"hair": return name if name.ends_with("mane") else "%s hair" % name
 		"eyes": return "%s eyes" % name
 		"mouth": return "%s mouth" % name
 	if parts.size() > 2:

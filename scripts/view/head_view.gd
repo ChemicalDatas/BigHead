@@ -17,8 +17,18 @@ const OUTLINE := Color("#2a1d17")
 const BASE := Color("#c9a54a")
 const BONE := Color("#efe2c6")
 const GOLD := Color("#f2c037")
+## The unicorn set's rainbow (mane, tail), outside in.
+const RAINBOW: Array[Color] = [
+	Color("#e74c3c"), Color("#f39c12"), Color("#f1c40f"),
+	Color("#2ecc71"), Color("#3498db"), Color("#9b59b6"),
+]
 
 ## Pixels the cursor must move while held before a press becomes a drag.
+## Indices into Catalog.BASES for the unicorn set's head parts.
+const UNICORN_FACE := 4
+const RAINBOW_HAIR := 5
+const UNICORN_HORN := 6   ## build.accessory (0 is "none")
+
 const DRAG_THRESHOLD := 8.0
 
 ## How quickly the eyes catch up with the cursor (higher = snappier).
@@ -261,18 +271,68 @@ func _draw_base_and_body() -> void:
 	draw_polyline(_closed(front), OUTLINE, 4.0, true)
 	draw_line(Vector2(-120, 180), Vector2(-120, 205), OUTLINE, 4.0)
 	draw_line(Vector2(120, 180), Vector2(120, 205), OUTLINE, 4.0)
-	# Body: deliberately tiny next to the head.
-	var body := BodyShapes.outline(build.body_shape)
+	# Body: deliberately tiny next to the head. Arms, legs and the tail go
+	# behind the torso so their inner ends tuck under it.
+	var shape := build.body_shape
+	var body := BodyShapes.outline(shape)
 	var textured := build.use_body_texture and body_texture != null
-	var look := Variants.body(Catalog.BASES["body"][build.body_shape], build.body_variant)
-	if build.body_shape == 4:
-		_draw_goat_legs(Color("#d9cdb6") if textured else (look["base"] as Color).darkened(0.12))
+	var look := Variants.body(Catalog.BASES["body"][shape], build.body_variant)
+	if shape == BodyShapes.UNICORN:
+		_draw_rainbow_tail()
+	_draw_legs(shape, look, textured)
+	_draw_arms(shape, look, textured)
 	if textured:
 		draw_colored_polygon(body, Color.WHITE, BodyShapes.uvs(body), body_texture)
 	else:
 		_fill(body, look, 60.0)
-		_draw_body_details(build.body_shape, look)
+		_draw_body_details(shape, look)
 	draw_polyline(_closed(body), OUTLINE, 4.0, true)
+
+
+## Sleeves take the body's variant (or the uploaded texture); hands, and the
+## T-shirt's bare arms, take the skin color.
+func _draw_arms(shape: int, look: Dictionary, textured: bool) -> void:
+	for hand in BodyShapes.hands(shape):
+		draw_circle(hand, BodyShapes.HAND_RADIUS, build.skin_color())
+		draw_arc(hand, BodyShapes.HAND_RADIUS, 0, TAU, 20, OUTLINE, 3.0, true)
+	for arm in BodyShapes.arms(shape):
+		if BodyShapes.bare_arms(shape):
+			draw_colored_polygon(arm, build.skin_color())
+		elif textured:
+			draw_colored_polygon(arm, Color.WHITE, BodyShapes.uvs(arm), body_texture)
+		else:
+			_fill(arm, look, 60.0)
+		draw_polyline(_closed(arm), OUTLINE, 3.0, true)
+
+
+## Four legs for the animals: the body's color (or texture), hooves in the
+## trim color when the variant has one.
+func _draw_legs(shape: int, look: Dictionary, textured: bool) -> void:
+	var hoof_color: Color = look.get("trim", Color("#3a2a20"))
+	for leg in BodyShapes.legs(shape):
+		var pts := BodyShapes.rect_points(leg)
+		if textured:
+			draw_colored_polygon(pts, Color.WHITE, BodyShapes.uvs(pts), body_texture)
+		else:
+			draw_colored_polygon(pts, (look["base"] as Color).darkened(0.08))
+		draw_polyline(_closed(pts), OUTLINE, 3.0, true)
+		var hoof := Rect2(leg.position.x - 1, leg.end.y - 9, leg.size.x + 2, 9)
+		draw_rect(hoof, hoof_color)
+		draw_rect(hoof, OUTLINE, false, 3.0)
+
+
+## The unicorn's tail: six rainbow strands, the same on every style.
+func _draw_rainbow_tail() -> void:
+	var curve := BodyShapes.tail_curve()
+	var strand := 6.0
+	draw_polyline(curve, OUTLINE, strand * RAINBOW.size() + 6.0, true)
+	for i in RAINBOW.size():
+		var offset := (float(i) - (RAINBOW.size() - 1) * 0.5) * strand
+		var pts := PackedVector2Array()
+		for k in curve.size():
+			var dir := (curve[mini(k + 1, curve.size() - 1)] - curve[maxi(k - 1, 0)]).normalized()
+			pts.append(curve[k] + dir.orthogonal() * offset)
+		draw_polyline(pts, RAINBOW[i], strand + 0.5, true)
 
 
 ## Fills a shape with a variant: its plain color, or its pattern tiled every
@@ -316,15 +376,6 @@ func _draw_body_details(shape: int, look: Dictionary) -> void:
 			draw_arc(Vector2(0, 58), 10, 0, TAU, 16, OUTLINE, 2.0, true)
 
 
-func _draw_goat_legs(color: Color) -> void:
-	for leg in BodyShapes.goat_legs():
-		draw_rect(leg, color)
-		draw_rect(leg, OUTLINE, false, 3.0)
-		var hoof := Rect2(leg.position.x - 1, leg.end.y - 9, leg.size.x + 2, 9)
-		draw_rect(hoof, Color("#3a2a20"))
-		draw_rect(hoof, OUTLINE, false, 3.0)
-
-
 func _draw_neck() -> void:
 	# A coiled spring from the collar to the bottom of the head.
 	var from := Vector2(0, 40)
@@ -346,6 +397,8 @@ func _draw_face(c: Vector2, r: float) -> void:
 	var scaled := PackedVector2Array()
 	for p in outline:
 		scaled.append(c + (p - c) * face_scale)
+	if build.face_shape == UNICORN_FACE:
+		_draw_unicorn_ears(c, r)
 
 	if show_steam_face and steam_texture != null:
 		# The Steam avatar, masked to the chosen face shape.
@@ -362,8 +415,44 @@ func _draw_face(c: Vector2, r: float) -> void:
 	draw_colored_polygon(scaled, build.skin_color())
 	draw_polyline(_closed(scaled), OUTLINE, 5.0, true)
 	var s := face_scale
+	if build.face_shape == UNICORN_FACE:
+		_draw_muzzle(c, r, s)
 	_draw_eyes(c, r, s)
 	_draw_mouth(c, r, s)
+
+
+## Pointed ears behind the unicorn face, with pink insides. They stay on
+## when the Steam face shows.
+func _draw_unicorn_ears(c: Vector2, r: float) -> void:
+	for a in [PI * 1.31, PI * 1.69]:
+		var ear := PackedVector2Array([
+			c + Vector2.from_angle(a - 0.16) * r * 0.78,
+			c + Vector2.from_angle(a) * r * 1.3,
+			c + Vector2.from_angle(a + 0.16) * r * 0.78,
+		])
+		draw_colored_polygon(ear, build.skin_color())
+		draw_polyline(_closed(ear), OUTLINE, 4.0, true)
+		var inner := PackedVector2Array([
+			c + Vector2.from_angle(a - 0.08) * r * 0.86,
+			c + Vector2.from_angle(a) * r * 1.18,
+			c + Vector2.from_angle(a + 0.08) * r * 0.86,
+		])
+		draw_colored_polygon(inner, Color("#f4a6c6"))
+
+
+## A lighter muzzle with nostrils; the mouth is drawn on top of it.
+func _draw_muzzle(c: Vector2, r: float, s: Vector2) -> void:
+	var muzzle := PackedVector2Array()
+	for p in _ellipse(Vector2.ZERO, r * 0.44, r * 0.3, 40):
+		muzzle.append(c + (Vector2(0, r * 0.5) + p) * s)
+	var skin := build.skin_color()
+	draw_colored_polygon(muzzle, skin.lerp(Color("#f4a6c6"), 0.3))
+	draw_polyline(_closed(muzzle), skin.darkened(0.25), 2.0, true)
+	for side in [-1.0, 1.0]:
+		var n := PackedVector2Array()
+		for p in _ellipse(Vector2.ZERO, r * 0.045, r * 0.03, 12):
+			n.append(c + (Vector2(side * r * 0.2, r * 0.32) + p) * s)
+		draw_colored_polygon(n, skin.darkened(0.45))
 
 
 ## Each eye style looks at the cursor its own way (gaze is smoothed and capped
@@ -417,13 +506,25 @@ func _draw_hair_back(c: Vector2, r: float) -> void:
 	if build.hair == 3:  # Mop: a big mass behind the face
 		draw_circle(c + Vector2(0, -r * 0.08), r * 1.06, build.hair_color)
 		draw_arc(c + Vector2(0, -r * 0.08), r * 1.06, 0, TAU, 48, OUTLINE, 4.0, true)
+	elif build.hair == RAINBOW_HAIR:  # Rainbow mane: flows down the right side
+		_draw_rainbow_band(c, r * 0.96, r * 0.055, -PI * 0.62, PI * 0.32)
+
+
+## Six rainbow stripes following an arc, from `inner` outward, each `width`
+## thick. Ignores the hair color: the rainbow is the point.
+func _draw_rainbow_band(c: Vector2, inner: float, width: float, a0: float, a1: float) -> void:
+	var n := RAINBOW.size()
+	var mid := inner + width * n * 0.5
+	draw_arc(c, mid, a0, a1, 40, OUTLINE, width * n + 6.0, true)
+	for i in n:
+		draw_arc(c, inner + width * (n - 1 - i + 0.5), a0, a1, 40, RAINBOW[i], width + 0.8, true)
 
 
 ## Hats sit on top of the head, so hair that would stick up through them is
 ## tucked under instead ("hat hair"). Otherwise a tall hairstyle pokes out
 ## behind the hat and reads as a second hat.
 func _wearing_hat() -> bool:
-	return build.accessory == 2 or build.accessory == 3 or build.accessory == 5  # party hat, crown, wizard hat
+	return build.accessory in [2, 3, 5, UNICORN_HORN]  # party hat, crown, wizard hat, unicorn horn
 
 
 func _draw_hair_front(c: Vector2, r: float) -> void:
@@ -468,6 +569,8 @@ func _draw_hair_front(c: Vector2, r: float) -> void:
 			pts.append(c + Vector2.from_angle(PI * 1.4) * r * 0.8)
 			draw_colored_polygon(pts, build.hair_color)
 			draw_polyline(_closed(pts), OUTLINE, 3.0, true)
+		RAINBOW_HAIR:  # Rainbow fringe across the top of the head
+			_draw_rainbow_band(c, r * 0.8, r * 0.033, PI * 1.06, PI * 1.94)
 
 
 func _draw_accessory(c: Vector2, r: float) -> void:
@@ -522,6 +625,29 @@ func _draw_accessory(c: Vector2, r: float) -> void:
 					draw_arc(hc, r * 0.3, a0, a1, 24, look["base"], thickness, true)
 		5:  # Wizard hat
 			_draw_wizard_hat(c, r, look)
+		UNICORN_HORN:
+			_draw_unicorn_horn(c, r, look)
+
+
+## A spiral horn on the forehead: the base color with slanted bands in the
+## accent color.
+func _draw_unicorn_horn(c: Vector2, r: float, look: Dictionary) -> void:
+	var left := c + Vector2(-r * 0.19, -r * 0.82)
+	var right := c + Vector2(r * 0.19, -r * 0.82)
+	var apex := c + Vector2(r * 0.08, -r * 1.9)
+	var cone := PackedVector2Array([left, apex, right])
+	draw_colored_polygon(cone, look["base"])
+	var bands := 7
+	var slant := 0.07
+	for k in range(0, bands, 2):
+		var t0 := float(k) / bands
+		var t1 := float(k + 1) / bands
+		var band := PackedVector2Array([
+			left.lerp(apex, t0), left.lerp(apex, t1),
+			right.lerp(apex, minf(t1 + slant, 1.0)), right.lerp(apex, minf(t0 + slant, 1.0)),
+		])
+		draw_colored_polygon(band, look["accent"])
+	draw_polyline(_closed(cone), OUTLINE, 4.0, true)
 
 
 ## A wizard hat whose tip bends over; the cone takes the variant's pattern,
@@ -563,6 +689,8 @@ func _face_polygon(shape: int, c: Vector2, r: float) -> PackedVector2Array:
 				p = Vector2(signf(cos(t)) * pow(absf(cos(t)), 0.5), signf(sin(t)) * pow(absf(sin(t)), 0.5)) * r * 0.84
 			3:  # Egg: wider at the jaw
 				p = Vector2(cos(t) * r * 0.78 * (1.0 + 0.16 * sin(t)), sin(t) * r * 0.98)
+			UNICORN_FACE:  # Unicorn: long, a little wider at the muzzle (ears and muzzle drawn separately)
+				p = Vector2(cos(t) * r * 0.72 * (1.0 + 0.1 * sin(t)), sin(t) * r * 0.98)
 		pts.append(c + p)
 	return pts
 

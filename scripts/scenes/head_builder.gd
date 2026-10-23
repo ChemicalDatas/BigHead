@@ -15,7 +15,9 @@ extends Control
 ## and Esc cancels. On first launch there's nothing to go back to: just Play.
 ## Uploads are staged and only replace the saved images on Save.
 
+## Guide template (colored outlines, labels) and blank template (plain outlines).
 const BODY_TEMPLATE := "res://assets/body_template.png"
+const BLANK_TEMPLATE := "res://assets/body_template_blank.png"
 const PREVIEW_BASE_RADIUS := 115.0
 
 var _build: HeadBuild
@@ -226,10 +228,16 @@ func _make_body_tab() -> Control:
 	remove.pressed.connect(_remove_upload.bind(UploadStore.BODY))
 	upload_row.add_child(remove)
 	tab.add_child(upload_row)
-	var template := _make_button("Save body template…")
-	template.pressed.connect(_open_template_save)
-	tab.add_child(template)
-	tab.add_child(_hint_label("Paint over the template in Krita or GIMP, then upload it. The whole image covers the body; each body shape shows the part inside its outline."))
+	var template_row := HBoxContainer.new()
+	template_row.add_theme_constant_override("separation", 8)
+	var template := _make_button("Save template…")
+	template.pressed.connect(_open_template_save.bind(false))
+	template_row.add_child(template)
+	var blank := _make_button("Save blank template…")
+	blank.pressed.connect(_open_template_save.bind(true))
+	template_row.add_child(blank)
+	tab.add_child(template_row)
+	tab.add_child(_hint_label("Paint over a template in Krita or GIMP, then upload it. The whole image covers the body; each body shape shows the part inside its outlines, arms and legs included. The blank one has plain outlines to paint straight onto."))
 	return tab
 
 
@@ -309,11 +317,17 @@ func _make_item_picker(category: String) -> Control:
 				return "-"
 			var index := _build.get_choice(category)
 			var text := HeadBuild.option_label(category, index)
-			return text if _build.is_option_owned(category, index, Game.inventory) else text + " (locked)",
+			if _build.is_option_owned(category, index, Game.inventory):
+				return text
+			if Catalog.rarity(_build.item_id_for(category, index)) == Catalog.Rarity.MULTIPLAYER:
+				return text + " (multiplayer)"
+			return text + " (locked)",
 		func(step: int) -> void:
 			if category == "accessory_variant" and _build.accessory == 0:
 				return
 			_build.cycle(category, step)
+			if category == "hair":
+				_refresh_hair_color_enabled()
 			if category == "accessory" or category == "body_shape":
 				_build.select_owned_variant(category, Game.inventory)
 			for key in ["accessory_variant", "body_variant"]:
@@ -389,12 +403,18 @@ func _changed(direction: float) -> void:
 		_head.bobble.nudge_toward(Vector2(direction, -0.3), 0.6)
 
 
+## The rainbow mane keeps its own colors, so the hair color does nothing there.
+func _refresh_hair_color_enabled() -> void:
+	_hair_color.disabled = _build.hair == HeadView.RAINBOW_HAIR
+
+
 func _refresh_all() -> void:
 	for key in _value_labels:
 		(_value_labels[key] as Callable).call()
 	_size_slider.set_value_no_signal(_build.head_size)
 	_refresh_size_label()
 	_hair_color.color = _build.hair_color
+	_refresh_hair_color_enabled()
 	_skin_color.color = _build.skin
 	_banner_color.color = _style.banner_color
 	_banner_text_color.color = _style.banner_text_color
@@ -466,18 +486,18 @@ func _open_upload(kind: String) -> void:
 	_file_dialog.popup_centered_ratio(0.6)
 
 
-func _open_template_save() -> void:
-	_pending_upload = "template"
+func _open_template_save(blank: bool) -> void:
+	_pending_upload = "template_blank" if blank else "template"
 	_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-	_file_dialog.title = "Save the body template"
+	_file_dialog.title = "Save the blank body template" if blank else "Save the body template"
 	_file_dialog.filters = PackedStringArray(["*.png ; PNG image"])
-	_file_dialog.current_file = "big_head_body_template.png"
+	_file_dialog.current_file = "big_head_body_template_blank.png" if blank else "big_head_body_template.png"
 	_file_dialog.popup_centered_ratio(0.6)
 
 
 func _on_file_selected(path: String) -> void:
-	if _pending_upload == "template":
-		save_template(path)
+	if _pending_upload.begins_with("template"):
+		save_template(path, _pending_upload == "template_blank")
 	else:
 		import_upload(_pending_upload, path)
 
@@ -510,8 +530,8 @@ func _remove_upload(kind: String) -> void:
 	_refresh_all()
 
 
-func save_template(path: String) -> void:
-	var texture := load(BODY_TEMPLATE) as Texture2D
+func save_template(path: String, blank := false) -> void:
+	var texture := load(BLANK_TEMPLATE if blank else BODY_TEMPLATE) as Texture2D
 	if texture == null:
 		_status.text = "The body template is missing from this build."
 		return

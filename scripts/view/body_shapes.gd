@@ -2,9 +2,60 @@ class_name BodyShapes
 extends RefCounted
 ## Body outlines in HeadView's local space (origin = neck pivot).
 ## A body texture maps onto TEXTURE_BOX: the whole uploaded image covers that
-## box, and each shape shows the part of it inside its outline.
+## box, and each shape shows the part of it inside its outlines (torso, plus
+## arms for people and legs for animals).
+##
+## People (suit, hoodie, T-shirt, robe) have two arms; animals (goat, unicorn)
+## have four legs and no arms. Arms and legs belong to the body: they stay put
+## while the head bobbles.
 
-const TEXTURE_BOX := Rect2(-90, 30, 180, 150)
+const TEXTURE_BOX := Rect2(-110, 30, 220, 150)
+
+const GOAT := 4
+const UNICORN := 5
+
+## The right arm of each person body (the left one mirrors it), and where its
+## hand sits. The inner edge tucks under the torso, which is drawn on top.
+const _ARMS := {
+	0: [Vector2(50, 44), Vector2(68, 56), Vector2(96, 140), Vector2(80, 147), Vector2(62, 92)],   # Suit
+	1: [Vector2(52, 42), Vector2(72, 52), Vector2(100, 140), Vector2(84, 147), Vector2(68, 96)],  # Hoodie
+	2: [Vector2(60, 94), Vector2(74, 100), Vector2(82, 146), Vector2(68, 148)],                   # T-shirt: bare arm below the sleeve
+	3: [Vector2(44, 42), Vector2(64, 56), Vector2(110, 124), Vector2(86, 140), Vector2(60, 100)], # Robe: wide sleeve
+}
+const _HANDS := {0: Vector2(90, 151), 1: Vector2(94, 151), 2: Vector2(76, 153), 3: Vector2(100, 138)}
+const HAND_RADIUS := 9.0
+
+
+static func is_animal(shape: int) -> bool:
+	return shape == GOAT or shape == UNICORN
+
+
+## Both arms (right, then left), or none for animals.
+static func arms(shape: int) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	if not _ARMS.has(shape):
+		return out
+	var right := PackedVector2Array(_ARMS[shape])
+	var left := PackedVector2Array()
+	for p in right:
+		left.append(Vector2(-p.x, p.y))
+	out.append(right)
+	out.append(left)
+	return out
+
+
+static func hands(shape: int) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	if _HANDS.has(shape):
+		var h: Vector2 = _HANDS[shape]
+		out.append(h)
+		out.append(Vector2(-h.x, h.y))
+	return out
+
+
+## True when the arm is bare skin (the T-shirt) rather than a sleeve.
+static func bare_arms(shape: int) -> bool:
+	return shape == 2
 
 
 static func outline(shape: int) -> PackedVector2Array:
@@ -25,7 +76,13 @@ static func outline(shape: int) -> PackedVector2Array:
 				Vector2(-88, 178), Vector2(-62, 64), Vector2(-38, 36), Vector2(38, 36),
 				Vector2(62, 64), Vector2(88, 178),
 			])
-		4:  # Goat: a fluffy blob standing on four legs (see goat_legs)
+		UNICORN:  # Unicorn: a smooth barrel on four legs, rainbow tail behind (see tail)
+			var smooth := PackedVector2Array()
+			for i in range(96):
+				var t := TAU * float(i) / 96.0
+				smooth.append(Vector2(0, 98) + Vector2(cos(t) * 74.0, sin(t) * 52.0))
+			return smooth
+		GOAT:  # Goat: a fluffy blob standing on four legs (see legs)
 			var pts := PackedVector2Array()
 			for i in range(168):
 				var t := TAU * float(i) / 168.0
@@ -39,12 +96,30 @@ static func outline(shape: int) -> PackedVector2Array:
 			])
 
 
-## The goat's legs as rectangles (drawn behind the body, hooves at the bottom).
-static func goat_legs() -> Array[Rect2]:
-	var legs: Array[Rect2] = []
-	for x in [-50.0, -22.0, 10.0, 38.0]:
-		legs.append(Rect2(x, 130, 13, 46))
-	return legs
+## An animal's four legs as rectangles (drawn behind the body, hooves at the
+## bottom). People have none.
+static func legs(shape: int) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	if is_animal(shape):
+		for x in [-50.0, -22.0, 10.0, 38.0]:
+			out.append(Rect2(x, 130, 13, 46))
+	return out
+
+
+static func rect_points(rect: Rect2) -> PackedVector2Array:
+	return PackedVector2Array([rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)])
+
+
+## The center line of the unicorn's tail, from the rump out and down.
+static func tail_curve() -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	var a := Vector2(-64, 84)
+	var b := Vector2(-116, 92)
+	var c := Vector2(-94, 164)
+	for i in range(21):
+		var t := float(i) / 20.0
+		pts.append(a.lerp(b, t).lerp(b.lerp(c, t), t))
+	return pts
 
 
 static func uvs(points: PackedVector2Array) -> PackedVector2Array:
