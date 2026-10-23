@@ -10,6 +10,7 @@ extends RefCounted
 ##   "bobbling_for"         {"seconds": continuous bobbling}
 ##   "still_for"            {"seconds": continuous rest}
 ##   "head_size_maxed"      {}
+##   "balloon_popped"       {"cause": "whiplash" | "ground" | "firework"}
 
 const BIG_HEAD := "BIG_HEAD"
 const WHIPLASH := "WHIPLASH"
@@ -20,10 +21,11 @@ const ITS_A_PARTY := "ITS_A_PARTY"
 const GRAND_FINALE := "GRAND_FINALE"
 const LEVEL_HEADED := "LEVEL_HEADED"
 const SWELLED_HEAD := "SWELLED_HEAD"
+const POP_GOES_THE_HEAD := "POP_GOES_THE_HEAD"
 
 const ALL: Array[String] = [
 	BIG_HEAD, WHIPLASH, PERPETUAL_MOTION, BOBBLE_BOOP, OOH_AAH,
-	ITS_A_PARTY, GRAND_FINALE, LEVEL_HEADED, SWELLED_HEAD,
+	ITS_A_PARTY, GRAND_FINALE, LEVEL_HEADED, SWELLED_HEAD, POP_GOES_THE_HEAD,
 ]
 
 const WHIPLASH_SPEED := 2200.0        ## px/s at drag release
@@ -69,6 +71,8 @@ static func unlocks_for(event: String, data: Dictionary, stats: Dictionary, stea
 				unlocks.append(LEVEL_HEADED)
 		"head_size_maxed":
 			unlocks.append(SWELLED_HEAD)
+		"balloon_popped":
+			unlocks.append(POP_GOES_THE_HEAD)
 	return unlocks
 
 

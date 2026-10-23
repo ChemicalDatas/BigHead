@@ -20,6 +20,7 @@ const CATEGORY_LABELS := {
 	"accessory_variant": "Style",
 	"body_shape": "Body",
 	"body_variant": "Style",
+	"rig": "Rig",
 }
 
 ## Which base choice each style picker belongs to.
@@ -54,6 +55,8 @@ var body_shape := 0
 var body_variant := 0
 ## True when the player uploaded a body texture (the image lives in UploadStore).
 var use_body_texture := false
+## 0 = Bobble (the spring neck, always available); 1.. = Catalog.BASES["rig"][rig - 1]
+var rig := 0
 
 
 # --------------------------------------------------------------------------
@@ -73,7 +76,7 @@ static func option_count(category: String) -> int:
 	if VARIANT_OF.has(category):
 		return Catalog.variant_count(slot_of(category))
 	var n := Catalog.base_count(slot_of(category))
-	return n + 1 if category == "accessory" else n
+	return n + 1 if category == "accessory" or category == "rig" else n
 
 
 static func option_label(category: String, index: int) -> String:
@@ -81,6 +84,8 @@ static func option_label(category: String, index: int) -> String:
 		return "#%d" % (index + 1)
 	if category == "accessory":
 		return "None" if index == 0 else Catalog.label("accessory", index - 1)
+	if category == "rig":
+		return "Bobble" if index == 0 else Catalog.label("rig", index - 1)
 	return Catalog.label(slot_of(category), index)
 
 
@@ -95,6 +100,8 @@ func item_id_for(category: String, index: int) -> String:
 			return Catalog.item_id("body", index, body_variant)
 		"body_variant":
 			return Catalog.item_id("body", body_shape, index)
+		"rig":
+			return "" if index == 0 else Catalog.item_id("rig", index - 1)
 	return Catalog.item_id(category, index)
 
 
@@ -117,7 +124,7 @@ func is_option_owned(category: String, index: int, inventory: InventoryPort) -> 
 ## Categories whose current choice the player doesn't own yet.
 func locked_categories(inventory: InventoryPort) -> Array[String]:
 	var locked: Array[String] = []
-	for category in CATEGORIES + ["body_shape"]:
+	for category in CATEGORIES + ["body_shape", "rig"]:
 		if not is_option_owned(category, get_choice(category), inventory):
 			locked.append(category)
 	return locked
@@ -229,13 +236,14 @@ func to_dict() -> Dictionary:
 		"body_shape": body_shape,
 		"body_variant": body_variant,
 		"use_body_texture": use_body_texture,
+		"rig": rig,
 	}
 
 
 static func from_dict(data: Dictionary) -> HeadBuild:
 	var build := HeadBuild.new()
 	build.player_name = str(data.get("player_name", "")).left(MAX_NAME_LENGTH)
-	for category in CATEGORIES + ["body_shape"]:
+	for category in CATEGORIES + ["body_shape", "rig"]:
 		build.set_choice(category, int(data.get(category, build.get_choice(category))))
 	build.accessory_variant = clampi(int(data.get("accessory_variant", 0)), 0, Catalog.variant_count("accessory") - 1)
 	build.body_variant = clampi(int(data.get("body_variant", 0)), 0, Catalog.variant_count("body") - 1)

@@ -34,6 +34,7 @@ func _launch_one(aim: Vector2, delay: float) -> void:
 	var view := get_viewport_rect().size
 	var rocket := Node2D.new()
 	rocket.position = Vector2(clampf(aim.x + randf_range(-120.0, 120.0), 0.0, view.x), view.y + 10.0)
+	rocket.set_meta("flying", true)
 	add_child(rocket)
 	var color: Color = COLORS[randi() % COLORS.size()]
 
@@ -59,12 +60,22 @@ func _launch_one(aim: Vector2, delay: float) -> void:
 	tween.tween_property(rocket, "position", aim, randf_range(0.65, 0.95)) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_callback(func() -> void:
+		rocket.set_meta("flying", false)
 		trail.emitting = false
 		_burst(aim, color))
 	tween.tween_interval(1.8)
 	tween.tween_callback(func() -> void:
 		_active -= 1
 		rocket.queue_free())
+
+
+## Where rockets still climbing are, in global coordinates (for popping balloons).
+func rocket_positions() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for rocket in get_children():
+		if rocket is Node2D and rocket.get_meta("flying", false):
+			out.append((rocket as Node2D).global_position)
+	return out
 
 
 func _burst(at: Vector2, color: Color) -> void:

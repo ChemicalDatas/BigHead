@@ -2,7 +2,8 @@
 
 Scapegoat A.L. LLC presents: become a bobblehead.
 
-**Current state: iteration 2A plus "Before the App ID" steps 1 to 3**
+**Current state: iteration 2A plus "Before the App ID" steps 1 to 3 and the
+Balloon rig from step 4**
 (catalog and inventory, drops, item variants, the unicorn set, arms and legs). The game runs as Valve's test app 480 (Spacewar) until Big Head
 has its own Steam App ID.
 
@@ -27,6 +28,10 @@ has its own Steam App ID.
     on four legs.
   - The super-rare unicorn set (face, Rainbow mane, body, horn) comes from a
     separate 1-in-500 roll. Unicorn horns #2-#4 are multiplayer-only.
+  - *Rig*: Bobble (the spring neck) or Balloon. The Balloon joins the
+    super-rare roll after 500 fireworks in total; its head floats on a string
+    from the hand and pops on a whiplash fling, the floor or a rocket hit,
+    then reinflates.
   - Every accessory and body comes in four numbered styles (#1-#4): same
     shape, different colors and patterns. Each style is its own item to
     collect. "Save template…" gives you a guide PNG to paint over;
@@ -91,6 +96,7 @@ show Spacewar's popup. The rest print to the terminal when they unlock:
 | PERPETUAL_MOTION | Keep it moving for 60 s | terminal |
 | LEVEL_HEADED | Leave it still for 5 min | terminal |
 | SWELLED_HEAD | Max the head-size slider | terminal |
+| POP_GOES_THE_HEAD | Pop the balloon head | terminal |
 
 The click and firework counters borrow Spacewar's `NumGames` and `NumWins`
 stats.
@@ -110,6 +116,7 @@ Editor → Run → Main Run Args.
 | `--unlock-all` | Treat every item as owned for this run (nothing is saved) |
 | `--reset-inventory` | Forget unlocked items; back to the starting set |
 | `--drop-rate=N` | Drop chance per right-click, 0 to 1 (`--drop-rate=1` drops every click) |
+| `--fireworks-launched=N` | Set your lifetime fireworks count (the Balloon rig can drop from 500, the Marionette from 1,000) |
 
 Example: `godot --path . -- --reset --fake-friends=19`
 

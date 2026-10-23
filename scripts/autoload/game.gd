@@ -11,6 +11,7 @@ extends Node
 ##   --unlock-all            treat every catalog item as owned for this run
 ##   --reset-inventory       forget unlocked items; back to the starting set
 ##   --drop-rate=N           chance of a drop per right-click, 0 to 1 (default 0.05)
+##   --fireworks-launched=N  set the lifetime fireworks count (tests the rig milestones)
 
 ## INTENTIONAL: the company name is "A.L.", not "A.I.". Do not correct it.
 const COMPANY_NAME := "Scapegoat A.L. LLC"
@@ -122,6 +123,7 @@ func _ready() -> void:
 	else:
 		achievements = NullAchievements.new()
 		stats = LocalStats.new()
+	_apply_fireworks_flag(args)
 
 	if _fake_friends >= 0:
 		_set_friends(_fake_friends)
@@ -157,6 +159,22 @@ func _parse_fake_friends(args: PackedStringArray) -> int:
 	return -1
 
 
+## --fireworks-launched=N (or --fireworks-launched N): sets the lifetime
+## fireworks count, to test the rig milestones (500 balloon, 1000 marionette).
+func _apply_fireworks_flag(args: PackedStringArray) -> void:
+	for i in args.size():
+		var value := ""
+		if args[i].begins_with("--fireworks-launched="):
+			value = args[i].get_slice("=", 1)
+		elif args[i] == "--fireworks-launched" and i + 1 < args.size():
+			value = args[i + 1]
+		if value.is_valid_int():
+			var name := AchievementRules.STAT_FIREWORKS
+			stats.add_int(name, int(value) - stats.get_int(name))
+			print("[game] Lifetime fireworks set to %d (--fireworks-launched)." % stats.get_int(name))
+			return
+
+
 ## Reads --drop-rate=N (or --drop-rate N), a chance from 0 to 1.
 func _parse_drop_rate(args: PackedStringArray) -> void:
 	for i in args.size():
@@ -177,8 +195,9 @@ func _parse_drop_rate(args: PackedStringArray) -> void:
 
 ## One right-click's drop roll. A new item is held "in a box" until opened.
 func roll_drop() -> DropRules.Result:
+	var fireworks := stats.get_int(AchievementRules.STAT_FIREWORKS)
 	var result := DropRules.roll(_drop_rng, drop_rate, func(id: String) -> bool:
-		return inventory.owns(id) or _waiting_in_boxes.has(id))
+		return inventory.owns(id) or _waiting_in_boxes.has(id), fireworks)
 	if result.kind == DropRules.Kind.NEW_ITEM:
 		_waiting_in_boxes[result.item_id] = result.super_rare
 	return result

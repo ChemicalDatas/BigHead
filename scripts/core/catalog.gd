@@ -10,7 +10,7 @@ extends RefCounted
 ## HeadBuild still stores choices as indices; this file maps them to ids.
 ## Accessory index 0 means "none" and is never an item; index 1 is the first base.
 
-const SLOTS: Array[String] = ["face_shape", "hair", "eyes", "mouth", "body", "accessory"]
+const SLOTS: Array[String] = ["face_shape", "hair", "eyes", "mouth", "body", "accessory", "rig"]
 
 const BASES := {
 	"face_shape": ["round", "oval", "square", "egg", "unicorn"],
@@ -19,6 +19,9 @@ const BASES := {
 	"mouth": ["smile", "grin", "oh", "flat"],
 	"body": ["suit", "hoodie", "tshirt", "robe", "goat", "unicorn"],
 	"accessory": ["glasses", "party_hat", "crown", "goat_horns", "wizard_hat", "unicorn_horn"],
+	## What holds the head up. The spring-neck Bobble is the default and isn't an
+	## item (rig index 0, like "no accessory"); the rest are collected.
+	"rig": ["balloon"],
 }
 
 const LABELS := {
@@ -28,6 +31,7 @@ const LABELS := {
 	"mouth": ["Smile", "Grin", "Oh", "Flat"],
 	"body": ["Suit", "Hoodie", "T-shirt", "Robe", "Goat", "Unicorn"],
 	"accessory": ["Glasses", "Party hat", "Crown", "Goat horns", "Wizard hat", "Unicorn horn"],
+	"rig": ["Balloon"],
 }
 
 ## Variants per base.
@@ -58,7 +62,12 @@ const SUPER_RARE_ITEMS: Array[String] = [
 	"face_shape/unicorn", "hair/rainbow",
 	"body/unicorn/0", "body/unicorn/1", "body/unicorn/2", "body/unicorn/3",
 	"accessory/unicorn_horn/0",
+	"rig/balloon",
 ]
+## Super-rares that only join the drop pool once the player has launched this
+## many fireworks in total (the lifetime fireworks stat).
+const FIREWORKS_TO_UNLOCK := {"rig/balloon": 500, "rig/marionette": 1000}
+
 const MULTIPLAYER_ITEMS: Array[String] = [
 	"accessory/unicorn_horn/1", "accessory/unicorn_horn/2", "accessory/unicorn_horn/3",
 ]
@@ -110,6 +119,11 @@ static func rarity(id: String) -> Rarity:
 	return Rarity.COMMON
 
 
+## False while an item is still waiting on its fireworks milestone.
+static func can_drop_yet(id: String, fireworks_launched: int) -> bool:
+	return fireworks_launched >= int(FIREWORKS_TO_UNLOCK.get(id, 0))
+
+
 ## A player-facing name for an item: "Mop hair", "Party hat #2", "Hoodie #3".
 static func display_name(id: String) -> String:
 	var parts := id.split("/")
@@ -123,6 +137,7 @@ static func display_name(id: String) -> String:
 		"hair": return name if name.ends_with("mane") else "%s hair" % name
 		"eyes": return "%s eyes" % name
 		"mouth": return "%s mouth" % name
+		"rig": return "%s rig" % name
 	if parts.size() > 2:
 		return "%s #%d" % [name, int(parts[2]) + 1]
 	return name

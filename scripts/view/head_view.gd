@@ -12,6 +12,18 @@ signal face_swapped(to_steam: bool)
 signal clicked(on_head: bool)
 ## A drag ended; `speed` is the cursor speed at release in pixels per second.
 signal drag_released(speed: float)
+## The balloon head popped. `cause` is "whiplash", "ground" or "firework".
+signal balloon_popped(cause: String)
+
+## Balloon pop, in order: one frame to snapshot the head, the skin tearing
+## away from the hit point, a limp scrap on the string, then reinflating.
+enum Balloon { INFLATED, POP_PENDING, POPPING, DEFLATED, INFLATING }
+const POP_SECONDS := 0.26
+const DEFLATED_SECONDS := 3.0
+const INFLATE_SECONDS := 0.7
+## The balloon pops when its lowest point reaches this height (the stand's top).
+const FLOOR_Y := 178.0
+const STRING_COLOR := Color("#f4f0e6")
 
 const OUTLINE := Color("#2a1d17")
 const BASE := Color("#c9a54a")
@@ -23,12 +35,14 @@ const RAINBOW: Array[Color] = [
 	Color("#2ecc71"), Color("#3498db"), Color("#9b59b6"),
 ]
 
-## Pixels the cursor must move while held before a press becomes a drag.
 ## Indices into Catalog.BASES for the unicorn set's head parts.
 const UNICORN_FACE := 4
 const RAINBOW_HAIR := 5
 const UNICORN_HORN := 6   ## build.accessory (0 is "none")
+## build.rig for the Balloon (0 is the spring-neck Bobble).
+const BALLOON_RIG := 1
 
+## Pixels the cursor must move while held before a press becomes a drag.
 const DRAG_THRESHOLD := 8.0
 
 ## How quickly the eyes catch up with the cursor (higher = snappier).
@@ -52,6 +66,23 @@ var face_hidden := false
 var face_scale := Vector2.ONE
 
 var bobble := BobbleState.new()
+## Draws only the head, unmoved, at the origin. Used for the balloon pop snapshot.
+var head_only := false
+
+var _rig_applied := -1
+var _rope: Rope = null
+var _balloon := Balloon.INFLATED
+var _balloon_t := 0.0
+var _balloon_frames := 0
+## Head space, from the head's centre toward where it was hit.
+var _pop_dir := Vector2.DOWN
+var _snapshot: SubViewport = null
+var _scrap := PackedVector2Array()
+## Head scale while reinflating (1 when inflated).
+var _inflate := 1.0
+## Seconds after reinflating during which touching the floor doesn't pop it
+## (it reinflates wherever the scrap landed, often on the floor).
+var _ground_grace := 0.0
 
 ## Eyes (or, for faces whose eyes can't move, the head) follow the cursor.
 var look_at_cursor := true
@@ -79,7 +110,8 @@ func radius() -> float:
 
 ## Height of the whole figure above the pivot (head plus the tallest hat) and below it (the base).
 func extent_above_pivot() -> float:
-	return radius() * 2.8
+	# The balloon floats about half a head higher than the bobble.
+	return radius() * (3.5 if is_balloon() else 2.8)
 
 
 func extent_below_pivot() -> float:
@@ -91,7 +123,61 @@ func _init() -> void:
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 
 
+func is_balloon() -> bool:
+	return build.rig == BALLOON_RIG and not head_only
+
+
+## True when a point (local space) is on an inflated balloon head.
+func hits_balloon(point: Vector2) -> bool:
+	return is_balloon() and _balloon == Balloon.INFLATED and point.distance_to(head_center()) <= radius() * 0.95
+
+
+## Swaps the physics when the build's rig changes.
+func _apply_rig() -> void:
+	_rig_applied = build.rig
+	_balloon = Balloon.INFLATED
+	_inflate = 1.0
+	_free_snapshot()
+	if is_balloon():
+		var balloon := BalloonState.new()
+		bobble = balloon
+		_configure_balloon()
+		balloon.place(balloon.rest_point())
+		_rope = Rope.new(balloon.anchor, balloon.offset, balloon.string_length)
+		_rope.floor_y = FLOOR_Y
+	else:
+		bobble = BobbleState.new()
+		_rope = null
+
+
+## The string is tied to the right hand, or to an animal's back. It's long
+## enough to reach the floor, and the head floats half a head above the pivot.
+func _configure_balloon() -> void:
+	var balloon := bobble as BalloonState
+	var r := radius()
+	var anchor := Vector2(0, 40)
+	if show_body:
+		var hands := BodyShapes.hands(build.body_shape)
+		anchor = hands[0] if not hands.is_empty() else Vector2(30, 56)
+	balloon.anchor = anchor
+	balloon.rest_height = -r * 0.5
+	balloon.string_length = maxf((anchor.y - balloon.rest_height) / 0.94, FLOOR_Y - anchor.y + r * 0.2)
+	_rope_set_length(balloon.string_length)
+
+
+func _rope_set_length(length: float) -> void:
+	if _rope != null:
+		_rope.set_length(length)
+
+
 func _physics_process(delta: float) -> void:
+	if head_only:
+		return
+	if build.rig != _rig_applied:
+		_apply_rig()
+	if is_balloon():
+		_balloon_physics(delta)
+		return
 	if bobble.dragging:
 		var mouse := get_local_mouse_position()
 		var instant := (mouse - _last_mouse) / maxf(delta, 0.0001)
@@ -101,7 +187,141 @@ func _physics_process(delta: float) -> void:
 	bobble.step(delta)
 
 
+func _balloon_physics(delta: float) -> void:
+	_configure_balloon()
+	var balloon := bobble as BalloonState
+	var has_head := _balloon == Balloon.INFLATED or _balloon == Balloon.INFLATING or _balloon == Balloon.POP_PENDING
+	if has_head:
+		if bobble.dragging:
+			var mouse := get_local_mouse_position()
+			var instant := (mouse - _last_mouse) / maxf(delta, 0.0001)
+			_mouse_velocity = _mouse_velocity.lerp(instant, 0.5)
+			_last_mouse = mouse
+			bobble.update_drag(mouse - _grab_offset)
+		bobble.step(delta)
+	_rope.end_pinned = has_head or _balloon == Balloon.POPPING
+	_rope.step(delta, balloon.anchor, bobble.offset)
+	_ground_grace = maxf(_ground_grace - delta, 0.0)
+	if _balloon == Balloon.INFLATED and _ground_grace <= 0.0 and head_center().y + radius() * 0.95 >= FLOOR_Y:
+		pop_balloon(head_center() + Vector2(0, radius() * 0.95), "ground")
+
+
+## Pops the balloon head at `at` (local space). Does nothing unless inflated.
+func pop_balloon(at: Vector2, cause: String) -> void:
+	if not is_balloon() or _balloon != Balloon.INFLATED:
+		return
+	var dir := (at - head_center()).rotated(-(bobble.angle + _look_tilt))
+	_pop_dir = dir.normalized() if dir.length() > 0.001 else Vector2.DOWN
+	bobble.dragging = false
+	_pressing = false
+	_stars_left = 0.0
+	_take_snapshot()
+	_balloon = Balloon.POP_PENDING
+	_balloon_t = 0.0
+	_balloon_frames = 0
+	_spawn_shreds(at)
+	balloon_popped.emit(cause)
+
+
+func _advance_balloon(delta: float) -> void:
+	_balloon_t += delta
+	match _balloon:
+		Balloon.POP_PENDING:
+			# The snapshot renders on the next frame; draw the head until then.
+			_balloon_frames += 1
+			if _balloon_frames >= 2:
+				_balloon = Balloon.POPPING
+				_balloon_t = 0.0
+		Balloon.POPPING:
+			if _balloon_t >= POP_SECONDS:
+				_balloon = Balloon.DEFLATED
+				_balloon_t = 0.0
+				_free_snapshot()
+				_make_scrap()
+		Balloon.DEFLATED:
+			if _balloon_t >= DEFLATED_SECONDS:
+				_balloon = Balloon.INFLATING
+				_balloon_t = 0.0
+				(bobble as BalloonState).place(_rope.end())
+		Balloon.INFLATING:
+			var t := clampf(_balloon_t / INFLATE_SECONDS, 0.0, 1.0)
+			_inflate = lerpf(0.15, 1.0, Tween.interpolate_value(0.0, 1.0, t, 1.0, Tween.TRANS_ELASTIC, Tween.EASE_OUT))
+			if t >= 1.0:
+				_inflate = 1.0
+				_balloon = Balloon.INFLATED
+				_ground_grace = 1.0
+
+
+## Renders the head as it is right now into a texture, for the pop.
+func _take_snapshot() -> void:
+	_free_snapshot()
+	var r := radius()
+	var k := clampf(global_scale.x, 0.25, 2.0)
+	var side := int(ceil(4.0 * r * k))
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(side, side)
+	viewport.transparent_bg = true
+	viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var copy := HeadView.new()
+	copy.head_only = true
+	copy.interactive = false
+	copy.look_at_cursor = false
+	copy.base_radius = base_radius
+	copy.build = build
+	copy.steam_texture = steam_texture
+	copy.show_steam_face = show_steam_face
+	copy.face_hidden = face_hidden
+	copy.face_scale = face_scale
+	copy._gaze = _gaze
+	copy.scale = Vector2(k, k)
+	copy.position = Vector2(side, side) * 0.5 + Vector2(0, r * 0.92) * k
+	viewport.add_child(copy)
+	add_child(viewport)
+	_snapshot = viewport
+
+
+func _free_snapshot() -> void:
+	if _snapshot != null:
+		_snapshot.queue_free()
+		_snapshot = null
+
+
+## Bits of rubber flying off the hit point.
+func _spawn_shreds(at: Vector2) -> void:
+	var shreds := CPUParticles2D.new()
+	shreds.position = at
+	shreds.one_shot = true
+	shreds.explosiveness = 1.0
+	shreds.amount = 16
+	shreds.lifetime = 0.7
+	shreds.spread = 180.0
+	shreds.initial_velocity_min = 220.0
+	shreds.initial_velocity_max = 520.0
+	shreds.gravity = Vector2(0, 900)
+	shreds.angular_velocity_min = -720.0
+	shreds.angular_velocity_max = 720.0
+	shreds.scale_amount_min = 4.0
+	shreds.scale_amount_max = 8.0
+	shreds.color = build.skin_color()
+	add_child(shreds)
+	shreds.emitting = true
+	get_tree().create_timer(1.2).timeout.connect(shreds.queue_free)
+
+
+## A small crumpled scrap of skin, hanging below the knot.
+func _make_scrap() -> void:
+	var r := radius()
+	_scrap = PackedVector2Array()
+	var n := 11
+	for i in n:
+		var a := TAU * float(i) / n
+		var wobble := 0.55 + 0.45 * absf(sin(float(i) * 2.3 + 0.7))
+		_scrap.append(Vector2(cos(a) * r * 0.17, r * 0.2 + sin(a) * r * 0.21) * wobble)
+
+
 func _process(delta: float) -> void:
+	if is_balloon():
+		_advance_balloon(delta)
 	_update_gaze(delta)
 	if _stars_left > 0.0:
 		_stars_left = maxf(_stars_left - delta, 0.0)
@@ -161,13 +381,21 @@ func _begin_press() -> void:
 	_pressing = true
 	_press_position = get_local_mouse_position()
 	_press_on_head = _press_position.distance_to(head_center()) <= radius() * 1.15
+	if is_balloon() and _balloon != Balloon.INFLATED:
+		_press_on_head = false  # nothing to grab while it's popped
 
 
 func _end_press() -> void:
 	_pressing = false
 	if bobble.dragging:
 		bobble.end_drag(_mouse_velocity)
-		drag_released.emit(_mouse_velocity.length())
+		var speed := _mouse_velocity.length()
+		drag_released.emit(speed)
+		if is_balloon() and speed >= AchievementRules.WHIPLASH_SPEED:
+			# Flung hard enough to snap: pops on the side it's yanked away from.
+			pop_balloon(head_center() - _mouse_velocity.normalized() * radius() * 0.9, "whiplash")
+		return
+	if is_balloon() and _balloon != Balloon.INFLATED:
 		return
 	var toward := get_local_mouse_position() - head_center()
 	bobble.nudge_toward(toward, 1.0)
@@ -218,21 +446,111 @@ func _swap_face_animated(to_steam: bool, kick: bool) -> void:
 # --------------------------------------------------------------------------
 
 func _draw() -> void:
-	if show_body:
-		_draw_base_and_body()
-	_draw_neck()
-
-	draw_set_transform(bobble.offset, bobble.angle + _look_tilt, Vector2.ONE)
 	var r := radius()
 	var c := Vector2(0.0, -r * 0.92)
+	if head_only:
+		_draw_head_layers(c, r, false)
+		return
+	if show_body:
+		_draw_base_and_body()
+	if is_balloon() and _rope != null:
+		_draw_balloon(c, r)
+		return
+	_draw_neck()
+	draw_set_transform(bobble.offset, bobble.angle + _look_tilt, Vector2.ONE)
+	_draw_head_layers(c, r, true)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+func _draw_head_layers(c: Vector2, r: float, stars: bool) -> void:
 	_draw_hair_back(c, r)
 	if not face_hidden:
 		_draw_face(c, r)
 	_draw_hair_front(c, r)
 	_draw_accessory(c, r)
-	if _stars_left > 0.0:
+	if stars and _stars_left > 0.0:
 		_draw_dizzy_stars(c, r)
+
+
+# --------------------------------------------------------------------------
+# Balloon rig
+# --------------------------------------------------------------------------
+
+func _draw_balloon(c: Vector2, r: float) -> void:
+	draw_polyline(_rope.points, OUTLINE, 3.5, true)
+	draw_polyline(_rope.points, STRING_COLOR, 1.8, true)
+	match _balloon:
+		Balloon.INFLATED, Balloon.POP_PENDING:
+			draw_set_transform(bobble.offset, bobble.angle + _look_tilt, Vector2.ONE)
+			_draw_knot(r)
+			_draw_head_layers(c, r, true)
+		Balloon.INFLATING:
+			draw_set_transform(bobble.offset, bobble.angle + _look_tilt, Vector2(_inflate, _inflate))
+			_draw_knot(r)
+			_draw_head_layers(c, r, false)
+		Balloon.POPPING:
+			draw_set_transform(bobble.offset, bobble.angle + _look_tilt, Vector2.ONE)
+			_draw_tearing_skin(c, r)
+		Balloon.DEFLATED:
+			_draw_scrap(r)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## The little tied-off neck of the balloon, under the face.
+func _draw_knot(r: float) -> void:
+	var knot := PackedVector2Array([Vector2(-r * 0.07, r * 0.1), Vector2(0, -r * 0.02), Vector2(r * 0.07, r * 0.1)])
+	draw_colored_polygon(knot, build.skin_color().darkened(0.12))
+	draw_polyline(_closed(knot), OUTLINE, 2.5, true)
+
+
+## The pop: a tear opens where the head was hit and the skin snaps back
+## toward the far side, faster and faster, until nothing is left.
+func _draw_tearing_skin(c: Vector2, r: float) -> void:
+	if _snapshot == null:
+		return
+	var p := clampf(_balloon_t / POP_SECONDS, 0.0, 1.0)
+	var big := r * 2.0  # covers the head and its tallest hat
+	var disc := _ellipse(c, big, big, 72)
+	var hole_center := c + _pop_dir * big
+	var start := big - r * 0.97
+	var hole_r := lerpf(start, big * 2.05, p * p)
+	var hole := PackedVector2Array()
+	for i in 56:
+		var a := TAU * float(i) / 56.0
+		var jag := 1.0 + 0.05 * sin(float(i) * 2.7) + 0.035 * sin(float(i) * 5.9 + 1.0)
+		hole.append(hole_center + Vector2.from_angle(a) * hole_r * jag)
+	var texture := _snapshot.get_texture()
+	var origin := c - Vector2(big, big)
+	for piece in Geometry2D.clip_polygons(disc, hole):
+		if Geometry2D.is_polygon_clockwise(piece):
+			continue
+		var uvs := PackedVector2Array()
+		for q in piece:
+			uvs.append((q - origin) / (big * 2.0))
+		draw_colored_polygon(piece, Color.WHITE, uvs, texture)
+	# The rolled-up rubber at the edge of the tear, where it crosses the face.
+	var lip_color := build.skin_color().darkened(0.3)
+	for line in Geometry2D.intersect_polyline_with_polygon(_closed(hole), _face_polygon(build.face_shape, c, r)):
+		draw_polyline(line, lip_color, 4.0, true)
+
+
+## What's left: a limp scrap on the end of the string, which shrivels a
+## little more as the last of the air goes.
+func _draw_scrap(r: float) -> void:
+	var n := _rope.points.size()
+	var tip := _rope.points[n - 1]
+	var along := tip - _rope.points[n - 2]
+	var angle := along.angle() - PI / 2.0 if along.length() > 0.01 else 0.0
+	var shrink := lerpf(1.7, 1.0, clampf(_balloon_t / 0.3, 0.0, 1.0))
+	draw_set_transform(tip, angle, Vector2(shrink, shrink))
+	var skin := build.skin_color()
+	draw_colored_polygon(_scrap, skin)
+	# Wrinkles where the empty skin folds over itself.
+	var fold := skin.darkened(0.28)
+	draw_polyline(PackedVector2Array([Vector2(-r * 0.06, r * 0.1), Vector2(r * 0.02, r * 0.2), Vector2(-r * 0.03, r * 0.3)]), fold, 2.5, true)
+	draw_polyline(PackedVector2Array([Vector2(r * 0.07, r * 0.12), Vector2(r * 0.04, r * 0.24)]), fold, 2.5, true)
+	draw_polyline(_closed(_scrap), OUTLINE, 2.5, true)
+	_draw_knot(r)
 
 
 ## Five stars on a tilted ring around the top of the head. They fade in and

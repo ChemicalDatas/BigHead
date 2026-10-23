@@ -59,6 +59,7 @@ func _ready() -> void:
 	add_child(_head)
 	_head.clicked.connect(_on_head_clicked)
 	_head.drag_released.connect(_on_drag_released)
+	_head.balloon_popped.connect(_on_balloon_popped)
 
 	_confetti = Confetti.new()
 	add_child(_confetti)
@@ -394,9 +395,22 @@ func _on_drag_released(speed: float) -> void:
 			_head.show_dizzy_stars(STARS_SECONDS)
 
 
+func _on_balloon_popped(cause: String) -> void:
+	print("[rig] Balloon popped (%s)." % cause)
+	if _playground:
+		Game.report("balloon_popped", {"cause": cause})
+
+
 func _process(delta: float) -> void:
 	if not _playground:
 		return
+	# A climbing rocket that flies into the balloon head pops it.
+	if _head.is_balloon():
+		for at in _fireworks.rocket_positions():
+			var local := _head.to_local(at)
+			if _head.hits_balloon(local):
+				_head.pop_balloon(local, "firework")
+				break
 	# Perpetual Motion: keep it moving for 60 s. Level-Headed: leave it still for 5 min.
 	if _head.bobble.is_resting():
 		_still_for += delta

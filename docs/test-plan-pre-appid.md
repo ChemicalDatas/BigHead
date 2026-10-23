@@ -151,16 +151,32 @@ Run with `--unlock-all` to see everything.
 
 ## 4. Rigs
 
-Status: **Not built yet**
+Status: **Balloon built** (2026-10-23); Marionette not built yet.
+
+Run with `--unlock-all` to pick the Balloon in Customize (Body tab, Rig).
+`--fireworks-launched=N` sets your lifetime fireworks count for the unlock
+checks. Each pop prints `[rig] Balloon popped (<cause>)` in the terminal.
+
+**Unlock**
+
+- [ ] Without `--unlock-all`, Rig shows "Balloon (locked)" and Play/Save stay disabled while it's chosen
+- [ ] With `--fireworks-launched=499 --drop-rate=1`, the balloon never drops (it isn't in the pool yet)
+- [ ] With `--fireworks-launched=500`, it can drop from the super-rare roll (1 in 500 right-clicks, rainbow gift box)
 
 **Balloon**
 
-- [ ] Balloon rig is locked until unlocked, then selectable in Customize
-- [ ] The head floats on a string tied to the body and sways gently
-- [ ] Dragging pulls the string taut; releasing lets it bob back up
-- [ ] Right-clicking near it pops it, leaving a limp string, then it reinflates
+- [ ] The head floats on a string tied to the right hand (the goat and unicorn: their back) and sways gently
+- [ ] Dragging pulls the string taut; releasing lets it float back up
+- [ ] A whiplash-speed fling pops it
+- [ ] Dragging it down to the floor pops it
+- [ ] Right-clicking on the head pops it when the rocket flies into it; rockets aimed elsewhere don't
+- [ ] The pop: a tear opens where it was hit, the skin snaps back across the head, and a small scrap is left on the string
+- [ ] The scrap drops limp onto the stand, then reinflates after about 3 seconds and floats back up
+- [ ] It doesn't re-pop straight away when it reinflates on the floor
+- [ ] The head can't be grabbed while it's popped
 - [ ] Popping it unlocks Pop Goes the Head (Steam players; terminal line on app 480)
 - [ ] Face swaps, eyes and dizzy stars still work on the balloon
+- [ ] The figure fits under the banner with the tallest hat on
 
 **Marionette**
 

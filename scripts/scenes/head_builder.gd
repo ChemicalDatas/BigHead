@@ -217,6 +217,7 @@ func _make_body_tab() -> Control:
 	var tab := _tab_box("Body")
 	tab.add_child(_make_item_picker("body_shape"))
 	tab.add_child(_make_item_picker("body_variant"))
+	tab.add_child(_make_item_picker("rig"))
 
 	tab.add_child(_section_label("Your own texture"))
 	var upload_row := HBoxContainer.new()
@@ -328,6 +329,8 @@ func _make_item_picker(category: String) -> Control:
 			_build.cycle(category, step)
 			if category == "hair":
 				_refresh_hair_color_enabled()
+			if category == "rig" or category == "body_shape":
+				_layout()  # the balloon floats higher, so the figure refits
 			if category == "accessory" or category == "body_shape":
 				_build.select_owned_variant(category, Game.inventory)
 			for key in ["accessory_variant", "body_variant"]:
