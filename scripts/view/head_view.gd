@@ -76,6 +76,11 @@ func extent_below_pivot() -> float:
 	return 232.0 if show_body else radius() * 0.1
 
 
+func _init() -> void:
+	# Variant patterns are small textures tiled across each shape.
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+
+
 func _physics_process(delta: float) -> void:
 	if bobble.dragging:
 		var mouse := get_local_mouse_position()
@@ -259,35 +264,51 @@ func _draw_base_and_body() -> void:
 	# Body: deliberately tiny next to the head.
 	var body := BodyShapes.outline(build.body_shape)
 	var textured := build.use_body_texture and body_texture != null
+	var look := Variants.body(Catalog.BASES["body"][build.body_shape], build.body_variant)
 	if build.body_shape == 4:
-		_draw_goat_legs(Color("#d9cdb6") if textured else build.body_paint().darkened(0.12))
+		_draw_goat_legs(Color("#d9cdb6") if textured else (look["base"] as Color).darkened(0.12))
 	if textured:
 		draw_colored_polygon(body, Color.WHITE, BodyShapes.uvs(body), body_texture)
 	else:
-		draw_colored_polygon(body, build.body_paint())
-		_draw_body_details(build.body_shape, build.body_paint())
+		_fill(body, look, 60.0)
+		_draw_body_details(build.body_shape, look)
 	draw_polyline(_closed(body), OUTLINE, 4.0, true)
 
 
-## Trim per body shape, tinted from the body color. Skipped for textured bodies.
-func _draw_body_details(shape: int, color: Color) -> void:
+## Fills a shape with a variant: its plain color, or its pattern tiled every
+## `tile` units.
+func _fill(points: PackedVector2Array, look: Dictionary, tile: float) -> void:
+	var pattern: String = look.get("pattern", "")
+	if pattern == "":
+		draw_colored_polygon(points, look["base"])
+		return
+	var uvs := PackedVector2Array()
+	for p in points:
+		uvs.append(p / tile)
+	draw_colored_polygon(points, Color.WHITE, uvs, Patterns.texture(pattern, look["base"], look.get("accent", look["base"])))
+
+
+## Trim per body shape, from the variant's colors. Skipped for textured bodies.
+func _draw_body_details(shape: int, look: Dictionary) -> void:
+	var color: Color = look["base"]
+	var trim: Color = look.get("trim", Color.WHITE)
 	var light := color.lightened(0.18)
 	var dark := color.darkened(0.25)
 	match shape:
 		0:  # Suit: shirt, tie, lapels
 			draw_colored_polygon(PackedVector2Array([Vector2(-16, 36), Vector2(16, 36), Vector2(0, 80)]), Color.WHITE)
-			draw_colored_polygon(PackedVector2Array([Vector2(-6, 44), Vector2(6, 44), Vector2(9, 110), Vector2(0, 122), Vector2(-9, 110)]), Color("#c0392b"))
+			draw_colored_polygon(PackedVector2Array([Vector2(-6, 44), Vector2(6, 44), Vector2(9, 110), Vector2(0, 122), Vector2(-9, 110)]), trim)
 			draw_line(Vector2(-40, 36), Vector2(-8, 100), light, 5.0)
 			draw_line(Vector2(40, 36), Vector2(8, 100), light, 5.0)
 		1:  # Hoodie: hood rim, pocket, strings
 			draw_arc(Vector2(0, 40), 34, 0.1, PI - 0.1, 16, dark, 8.0, true)
 			draw_rect(Rect2(-36, 118, 72, 34), dark)
-			draw_line(Vector2(-10, 46), Vector2(-12, 90), Color.WHITE, 3.0, true)
-			draw_line(Vector2(10, 46), Vector2(12, 90), Color.WHITE, 3.0, true)
+			draw_line(Vector2(-10, 46), Vector2(-12, 90), trim, 3.0, true)
+			draw_line(Vector2(10, 46), Vector2(12, 90), trim, 3.0, true)
 		2:  # T-shirt: collar
 			draw_arc(Vector2(0, 36), 16, 0.0, PI, 12, dark, 5.0, true)
-		3:  # Robe: V collar
-			draw_colored_polygon(PackedVector2Array([Vector2(-20, 36), Vector2(20, 36), Vector2(0, 76)]), light)
+		3:  # Robe: V collar in the trim color
+			draw_colored_polygon(PackedVector2Array([Vector2(-20, 36), Vector2(20, 36), Vector2(0, 76)]), trim if look.has("trim") else light)
 		4:  # Goat: a few tufts and a bell
 			for p in [Vector2(-40, 86), Vector2(30, 76), Vector2(-10, 126), Vector2(42, 124)]:
 				draw_arc(p, 9, PI, TAU, 8, dark, 3.0, true)
@@ -402,7 +423,7 @@ func _draw_hair_back(c: Vector2, r: float) -> void:
 ## tucked under instead ("hat hair"). Otherwise a tall hairstyle pokes out
 ## behind the hat and reads as a second hat.
 func _wearing_hat() -> bool:
-	return build.accessory == 2 or build.accessory == 3  # party hat, crown
+	return build.accessory == 2 or build.accessory == 3 or build.accessory == 5  # party hat, crown, wizard hat
 
 
 func _draw_hair_front(c: Vector2, r: float) -> void:
@@ -450,27 +471,27 @@ func _draw_hair_front(c: Vector2, r: float) -> void:
 
 
 func _draw_accessory(c: Vector2, r: float) -> void:
+	if build.accessory == 0:
+		return
+	var look := Variants.accessory(Catalog.BASES["accessory"][build.accessory - 1], build.accessory_variant)
 	match build.accessory:
-		1:  # Glasses
+		1:  # Glasses: frame color and lens tint
+			var frame: Color = look["base"]
 			for side in [-1.0, 1.0]:
 				var e := c + Vector2(side * r * 0.32, -r * 0.12)
-				draw_arc(e, r * 0.2, 0, TAU, 32, OUTLINE, 6.0, true)
-				draw_circle(e, r * 0.2, Color(0.7, 0.85, 1.0, 0.18))
-			draw_line(c + Vector2(-r * 0.12, -r * 0.14), c + Vector2(r * 0.12, -r * 0.14), OUTLINE, 6.0, true)
-			draw_line(c + Vector2(-r * 0.52, -r * 0.14), c + Vector2(-r * 0.8, -r * 0.2), OUTLINE, 6.0, true)
-			draw_line(c + Vector2(r * 0.52, -r * 0.14), c + Vector2(r * 0.8, -r * 0.2), OUTLINE, 6.0, true)
-		2:  # Party hat
+				draw_circle(e, r * 0.2, look["accent"])
+				draw_arc(e, r * 0.2, 0, TAU, 32, frame, 6.0, true)
+			draw_line(c + Vector2(-r * 0.12, -r * 0.14), c + Vector2(r * 0.12, -r * 0.14), frame, 6.0, true)
+			draw_line(c + Vector2(-r * 0.52, -r * 0.14), c + Vector2(-r * 0.8, -r * 0.2), frame, 6.0, true)
+			draw_line(c + Vector2(r * 0.52, -r * 0.14), c + Vector2(r * 0.8, -r * 0.2), frame, 6.0, true)
+		2:  # Party hat: patterned cone, pom-pom in the trim color
 			var apex := c + Vector2(r * 0.12, -r * 1.75)
-			var left := c + Vector2(-r * 0.38, -r * 0.8)
-			var right := c + Vector2(r * 0.42, -r * 0.84)
-			var hat := PackedVector2Array([left, apex, right])
-			draw_colored_polygon(hat, Color("#8e44ad"))
-			for t in [0.3, 0.55, 0.78]:
-				draw_line(left.lerp(apex, t), right.lerp(apex, t), Color("#f1c40f"), 7.0, true)
+			var hat := PackedVector2Array([c + Vector2(-r * 0.38, -r * 0.8), apex, c + Vector2(r * 0.42, -r * 0.84)])
+			_fill(hat, look, r * 0.55)
 			draw_polyline(_closed(hat), OUTLINE, 4.0, true)
-			draw_circle(apex, r * 0.09, Color("#f1c40f"))
+			draw_circle(apex, r * 0.09, look["trim"])
 			draw_arc(apex, r * 0.09, 0, TAU, 20, OUTLINE, 3.0, true)
-		3:  # Crown
+		3:  # Crown: metal color and three gems
 			var y0 := c.y - r * 0.82
 			var w := r * 0.55
 			var crown := PackedVector2Array([
@@ -478,19 +499,47 @@ func _draw_accessory(c: Vector2, r: float) -> void:
 				Vector2(c.x, y0 - r * 0.5), Vector2(c.x + w * 0.5, y0 - r * 0.22), Vector2(c.x + w, y0 - r * 0.42),
 				Vector2(c.x + w, y0),
 			])
-			draw_colored_polygon(crown, GOLD)
+			draw_colored_polygon(crown, look["base"])
 			draw_polyline(_closed(crown), OUTLINE, 4.0, true)
-			draw_circle(Vector2(c.x, y0 - r * 0.12), r * 0.06, Color("#e74c3c"))
-			draw_circle(Vector2(c.x - w * 0.6, y0 - r * 0.1), r * 0.045, Color("#3498db"))
-			draw_circle(Vector2(c.x + w * 0.6, y0 - r * 0.1), r * 0.045, Color("#2ecc71"))
-		4:  # Goat horns (a Scapegoat nod)
+			var gems: Array = look["gems"]
+			draw_circle(Vector2(c.x, y0 - r * 0.12), r * 0.06, gems[0])
+			draw_circle(Vector2(c.x - w * 0.6, y0 - r * 0.1), r * 0.045, gems[1])
+			draw_circle(Vector2(c.x + w * 0.6, y0 - r * 0.1), r * 0.045, gems[2])
+		4:  # Goat horns (a Scapegoat nod); the candy variant is striped
 			var thickness := r * 0.14
-			var lc := c + Vector2(-r * 0.62, -r * 0.78)
-			var rc := c + Vector2(r * 0.62, -r * 0.78)
-			draw_arc(lc, r * 0.3, PI * 0.3, -PI * 1.0, 24, OUTLINE, thickness + 6.0, true)
-			draw_arc(lc, r * 0.3, PI * 0.3, -PI * 1.0, 24, BONE, thickness, true)
-			draw_arc(rc, r * 0.3, PI * 0.7, PI * 2.0, 24, OUTLINE, thickness + 6.0, true)
-			draw_arc(rc, r * 0.3, PI * 0.7, PI * 2.0, 24, BONE, thickness, true)
+			for side in [-1.0, 1.0]:
+				var hc := c + Vector2(side * r * 0.62, -r * 0.78)
+				var a0 := PI * 0.3 if side < 0 else PI * 0.7
+				var a1 := -PI * 1.0 if side < 0 else PI * 2.0
+				draw_arc(hc, r * 0.3, a0, a1, 24, OUTLINE, thickness + 6.0, true)
+				if look.get("pattern", "") == "candy":
+					var bands := 8
+					for i in bands:
+						var b0 := lerpf(a0, a1, float(i) / bands)
+						var b1 := lerpf(a0, a1, float(i + 1) / bands)
+						draw_arc(hc, r * 0.3, b0, b1, 4, look["base"] if i % 2 == 0 else look["accent"], thickness, true)
+				else:
+					draw_arc(hc, r * 0.3, a0, a1, 24, look["base"], thickness, true)
+		5:  # Wizard hat
+			_draw_wizard_hat(c, r, look)
+
+
+## A wizard hat whose tip bends over; the cone takes the variant's pattern,
+## the band its trim color.
+func _draw_wizard_hat(c: Vector2, r: float, look: Dictionary) -> void:
+	var cone := PackedVector2Array([
+		c + Vector2(-r * 0.62, -r * 0.84), c + Vector2(-r * 0.42, -r * 1.3), c + Vector2(-r * 0.16, -r * 1.78),
+		c + Vector2(r * 0.12, -r * 2.08), c + Vector2(r * 0.46, -r * 2.06), c + Vector2(r * 0.26, -r * 1.86),
+		c + Vector2(r * 0.22, -r * 1.5), c + Vector2(r * 0.4, -r * 1.12), c + Vector2(r * 0.62, -r * 0.84),
+	])
+	var brim := _ellipse(c + Vector2(0, -r * 0.84), r * 1.0, r * 0.17, 40)
+	draw_colored_polygon(brim, (look["base"] as Color).darkened(0.15))
+	draw_polyline(_closed(brim), OUTLINE, 4.0, true)
+	_fill(cone, look, r * 0.75)
+	var band := PackedVector2Array([c + Vector2(-r * 0.6, -r * 0.88), c + Vector2(-r * 0.53, -r * 1.04), c + Vector2(r * 0.53, -r * 1.04), c + Vector2(r * 0.6, -r * 0.88)])
+	draw_colored_polygon(band, look["trim"])
+	draw_polyline(_closed(band), OUTLINE, 3.0, true)
+	draw_polyline(_closed(cone), OUTLINE, 4.0, true)
 
 
 # --------------------------------------------------------------------------

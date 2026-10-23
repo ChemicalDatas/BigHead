@@ -17,8 +17,13 @@ const CATEGORY_LABELS := {
 	"eyes": "Eyes",
 	"mouth": "Mouth",
 	"accessory": "Accessory",
+	"accessory_variant": "Style",
 	"body_shape": "Body",
+	"body_variant": "Style",
 }
+
+## Which base choice each style picker belongs to.
+const VARIANT_OF := {"accessory_variant": "accessory", "body_variant": "body_shape"}
 
 ## Swatches offered next to the free pickers.
 const SKIN_PRESETS: Array[Color] = [
@@ -57,16 +62,23 @@ var use_body_texture := false
 
 ## Catalog slot for a builder category.
 static func slot_of(category: String) -> String:
-	return "body" if category == "body_shape" else category
+	match category:
+		"body_shape", "body_variant": return "body"
+		"accessory_variant": return "accessory"
+	return category
 
 
 ## How many choices a category has (accessory includes "None").
 static func option_count(category: String) -> int:
+	if VARIANT_OF.has(category):
+		return Catalog.variant_count(slot_of(category))
 	var n := Catalog.base_count(slot_of(category))
 	return n + 1 if category == "accessory" else n
 
 
 static func option_label(category: String, index: int) -> String:
+	if VARIANT_OF.has(category):
+		return "#%d" % (index + 1)
 	if category == "accessory":
 		return "None" if index == 0 else Catalog.label("accessory", index - 1)
 	return Catalog.label(slot_of(category), index)
@@ -77,9 +89,24 @@ func item_id_for(category: String, index: int) -> String:
 	match category:
 		"accessory":
 			return "" if index == 0 else Catalog.item_id("accessory", index - 1, accessory_variant)
+		"accessory_variant":
+			return "" if accessory == 0 else Catalog.item_id("accessory", accessory - 1, index)
 		"body_shape":
 			return Catalog.item_id("body", index, body_variant)
+		"body_variant":
+			return Catalog.item_id("body", body_shape, index)
 	return Catalog.item_id(category, index)
+
+
+## After switching hat or body, land on a style the player owns, if any.
+func select_owned_variant(base_category: String, inventory: InventoryPort) -> void:
+	var style := "accessory_variant" if base_category == "accessory" else "body_variant"
+	if is_option_owned(style, get_choice(style), inventory):
+		return
+	for index in option_count(style):
+		if is_option_owned(style, index, inventory):
+			set_choice(style, index)
+			return
 
 
 func is_option_owned(category: String, index: int, inventory: InventoryPort) -> bool:
@@ -96,13 +123,24 @@ func locked_categories(inventory: InventoryPort) -> Array[String]:
 	return locked
 
 
-## Replaces any choice the player doesn't own with the first one they do.
+## Replaces any choice the player doesn't own with the first one they do
+## (for hats and bodies: another style of the same item first).
 ## Returns the categories that changed.
 func sanitize(inventory: InventoryPort) -> Array[String]:
 	var changed := locked_categories(inventory)
 	for category in changed:
-		if category == "accessory":
-			accessory = 0
+		if category == "accessory" or category == "body_shape":
+			select_owned_variant(category, inventory)
+			if is_option_owned(category, get_choice(category), inventory):
+				continue
+			if category == "accessory":
+				accessory = 0
+				continue
+			for base in option_count("body_shape"):
+				body_shape = base
+				select_owned_variant("body_shape", inventory)
+				if is_option_owned("body_shape", base, inventory):
+					break
 			continue
 		for index in option_count(category):
 			if is_option_owned(category, index, inventory):
@@ -137,13 +175,29 @@ func is_head_maxed() -> bool:
 
 ## Random look from the items the player owns.
 func randomize_all(rng: RandomNumberGenerator, inventory: InventoryPort) -> void:
-	for category in CATEGORIES + ["body_shape"]:
+	for category in ["face_shape", "hair", "eyes", "mouth"]:
 		var owned: Array[int] = []
 		for index in option_count(category):
 			if is_option_owned(category, index, inventory):
 				owned.append(index)
 		if not owned.is_empty():
 			set_choice(category, owned[rng.randi_range(0, owned.size() - 1)])
+	# Hats and bodies: pick among owned (item, style) pairs. "No hat" is always an option.
+	for pair in [["accessory", "accessory_variant"], ["body_shape", "body_variant"]]:
+		var choices: Array[Vector2i] = []
+		if pair[0] == "accessory":
+			choices.append(Vector2i(0, 0))
+		for base in option_count(pair[0]):
+			if pair[0] == "accessory" and base == 0:
+				continue
+			for style in option_count(pair[1]):
+				set_choice(pair[0], base)
+				if is_option_owned(pair[1], style, inventory):
+					choices.append(Vector2i(base, style))
+		if not choices.is_empty():
+			var pick := choices[rng.randi_range(0, choices.size() - 1)]
+			set_choice(pair[0], pick.x)
+			set_choice(pair[1], pick.y)
 	hair_color = HAIR_PRESETS[rng.randi_range(0, HAIR_PRESETS.size() - 1)]
 	skin = SKIN_PRESETS[rng.randi_range(0, SKIN_PRESETS.size() - 1)]
 

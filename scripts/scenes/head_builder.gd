@@ -62,20 +62,20 @@ func _ready() -> void:
 	add_child(_head)
 
 	var panel := PanelContainer.new()
-	panel.position = Vector2(32, 24)
+	panel.position = Vector2(32, 16)
 	panel.custom_minimum_size = Vector2(520, 0)
 	add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 20)
+		margin.add_theme_constant_override("margin_" + side, 16)
 	panel.add_child(margin)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 10)
+	column.add_theme_constant_override("separation", 6)
 	margin.add_child(column)
 
 	var title := Label.new()
 	title.text = "Build your bobblehead"
-	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_font_size_override("font_size", 28)
 	column.add_child(title)
 
 	if Game.steam_available:
@@ -88,13 +88,12 @@ func _ready() -> void:
 		_name_edit.placeholder_text = "Your name"
 		_name_edit.max_length = HeadBuild.MAX_NAME_LENGTH
 		_name_edit.text = _build.player_name
-		_name_edit.custom_minimum_size = Vector2(0, 40)
+		_name_edit.custom_minimum_size = Vector2(0, 34)
 		_name_edit.add_theme_font_size_override("font_size", 20)
 		_name_edit.text_changed.connect(func(_t: String) -> void: _banner_sample.set_text(_sample_name()))
 		column.add_child(_name_edit)
 
 	var tabs := TabContainer.new()
-	tabs.custom_minimum_size = Vector2(0, 430)
 	tabs.add_theme_font_size_override("font_size", 18)
 	column.add_child(tabs)
 	tabs.add_child(_make_head_tab())
@@ -180,6 +179,8 @@ func _make_head_tab() -> Control:
 	var tab := _tab_box("Head")
 	for category in HeadBuild.CATEGORIES:
 		tab.add_child(_make_item_picker(category))
+		if category == "accessory":
+			tab.add_child(_make_item_picker("accessory_variant"))
 		if category == "face_shape":
 			_skin_color = _color_row(tab, "Skin color", _build.skin, func(c: Color) -> void: _build.skin = c, HeadBuild.SKIN_PRESETS)
 		elif category == "hair":
@@ -213,6 +214,7 @@ func _make_head_tab() -> Control:
 func _make_body_tab() -> Control:
 	var tab := _tab_box("Body")
 	tab.add_child(_make_item_picker("body_shape"))
+	tab.add_child(_make_item_picker("body_variant"))
 
 	tab.add_child(_section_label("Your own texture"))
 	var upload_row := HBoxContainer.new()
@@ -268,7 +270,7 @@ func _make_scene_tab() -> Control:
 func _tab_box(tab_name: String) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	box.name = tab_name
-	box.add_theme_constant_override("separation", 8)
+	box.add_theme_constant_override("separation", 4)
 	return box
 
 
@@ -299,13 +301,24 @@ func _hint_label(text: String) -> Label:
 
 
 ## A picker for a catalog item: items the player doesn't own read "(locked)".
+## Changing a hat or body also moves its Style picker to a style the player owns.
 func _make_item_picker(category: String) -> Control:
 	return _make_picker(category,
 		func() -> String:
+			if category == "accessory_variant" and _build.accessory == 0:
+				return "-"
 			var index := _build.get_choice(category)
 			var text := HeadBuild.option_label(category, index)
 			return text if _build.is_option_owned(category, index, Game.inventory) else text + " (locked)",
-		func(step: int) -> void: _build.cycle(category, step),
+		func(step: int) -> void:
+			if category == "accessory_variant" and _build.accessory == 0:
+				return
+			_build.cycle(category, step)
+			if category == "accessory" or category == "body_shape":
+				_build.select_owned_variant(category, Game.inventory)
+			for key in ["accessory_variant", "body_variant"]:
+				if _value_labels.has(key):
+					(_value_labels[key] as Callable).call(),
 		func() -> bool: return not _build.is_option_owned(category, _build.get_choice(category), Game.inventory))
 
 
@@ -321,9 +334,9 @@ func _make_picker(key: String, read: Callable, step: Callable, is_locked := Call
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	value.add_theme_font_size_override("font_size", 18)
 	var prev := _make_button("<")
-	prev.custom_minimum_size = Vector2(40, 36)
+	prev.custom_minimum_size = Vector2(36, 30)
 	var next := _make_button(">")
-	next.custom_minimum_size = Vector2(40, 36)
+	next.custom_minimum_size = Vector2(36, 30)
 	var refresh := func() -> void:
 		value.text = read.call()
 		var locked: bool = is_locked.is_valid() and is_locked.call()
@@ -345,7 +358,7 @@ func _color_row(parent: Control, text: String, color: Color, on_change: Callable
 	var picker := ColorPickerButton.new()
 	picker.color = color
 	picker.edit_alpha = false
-	picker.custom_minimum_size = Vector2(170, 34)
+	picker.custom_minimum_size = Vector2(170, 28)
 	for preset in presets:
 		picker.get_picker().add_preset(preset)
 	picker.color_changed.connect(func(c: Color) -> void: on_change.call(c); _changed(0.0))
@@ -358,7 +371,7 @@ func _make_button(text: String) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.add_theme_font_size_override("font_size", 18)
-	button.custom_minimum_size = Vector2(0, 38)
+	button.custom_minimum_size = Vector2(0, 32)
 	return button
 
 
@@ -411,7 +424,7 @@ func _update_locks() -> void:
 		var names: Array[String] = []
 		for category in locked:
 			names.append(HeadBuild.CATEGORY_LABELS[category].to_lower())
-		_lock_note.text = "Locked: %s. Find it in fireworks drops, or pick something you own." % ", ".join(names)
+		_lock_note.text = "Locked: %s. Find %s in fireworks drops, or pick something you own." % [", ".join(names), "it" if names.size() == 1 else "them"]
 
 
 func _on_randomize() -> void:
