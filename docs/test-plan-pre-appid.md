@@ -47,11 +47,12 @@ if they change when the steps are built.
 
 Status: **Built** (2026-10-22). The starting set is Round and Oval faces, Buzz
 and Spiky hair, Dots and Googly eyes, Smile and Grin mouths, Suit and T-shirt
-bodies, and no accessories.
+bodies (each in a random style, #1-#4), and no accessories.
 
 **Starting set** (run with `--reset --reset-inventory`)
 
 - [ ] Hair style, face shape, eyes, mouth and body each offer exactly two unlocked options
+- [ ] The two starting bodies come in a random style: run `--reset-inventory` a few times and the Suit and T-shirt styles change
 - [ ] Every other option is visible, marked "(locked)" in grey, and shows on the preview
 - [ ] While a locked option is chosen, Play/Save is greyed out and a note says which part is locked
 - [ ] Accessories start with "None" only
@@ -105,14 +106,18 @@ without the flag to check normal rarity.
 
 ## 3. Content
 
-Status: **Not built yet**
+Status: **Partly built** (2026-10-22): variants, the wizard hat and the Style
+pickers are in. Still to come: the unicorn set, arms and legs, and the
+updated templates.
 
 Run with `--unlock-all` to see everything.
 
 **Variants**
 
-- [ ] Every accessory base has four variants
-- [ ] Every body base has four variants
+- [ ] Every accessory base has four variants, numbered #1-#4 in a Style picker under Accessory
+- [ ] Every body base has four variants, in a Style picker under Body
+- [ ] Locked styles read "#3 (locked)"; switching hat or body jumps to a style you own
+- [ ] A dropped style is named with its number, e.g. "New: Wizard hat #3!"
 - [ ] Variants of one item keep the same shape and differ only by colors and patterns
 - [ ] Variants look right with every face shape and with head size at 80% and 150%
 

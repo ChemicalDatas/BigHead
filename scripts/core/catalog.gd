@@ -40,12 +40,24 @@ const STARTING_SET: Array[String] = [
 	"hair/buzz", "hair/spiky",
 	"eyes/dots", "eyes/googly",
 	"mouth/smile", "mouth/grin",
-	"body/suit/0", "body/tshirt/0",
 ]
+## Starting items that come in styles: each new player gets one randomly
+## chosen style (#1-#4) of each.
+const STARTING_STYLED := {"body": ["suit", "tshirt"]}
 
 ## Rarity tiers. Super-rares (the unicorn set, step 3) roll separately from the
 ## regular drop pool.
 enum Rarity { COMMON, SUPER_RARE }
+
+
+## The starting items for a new player, with random styles for STARTING_STYLED.
+static func starting_items(rng: RandomNumberGenerator) -> Array[String]:
+	var ids: Array[String] = STARTING_SET.duplicate()
+	for slot in STARTING_STYLED:
+		for base_name in STARTING_STYLED[slot]:
+			var base: int = (BASES[slot] as Array).find(base_name)
+			ids.append(item_id(slot, base, rng.randi_range(0, variant_count(slot) - 1)))
+	return ids
 
 
 static func base_count(slot: String) -> int:

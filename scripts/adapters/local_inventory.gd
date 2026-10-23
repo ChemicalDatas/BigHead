@@ -1,7 +1,8 @@
 class_name LocalInventory
 extends InventoryPort
 ## Owned items in user://inventory.json. A new player starts with
-## Catalog.STARTING_SET. Local only: no trading, so nothing else needs to trust it.
+## Catalog.starting_items(): the starting set, with random body styles.
+## Local only: no trading, so nothing else needs to trust it.
 
 const PATH := "user://inventory.json"
 
@@ -16,7 +17,9 @@ func _init() -> void:
 				_owned[str(id)] = true
 			return
 		push_warning("Inventory file is unreadable; starting from the starting set.")
-	for id in Catalog.STARTING_SET:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for id in Catalog.starting_items(rng):
 		_owned[id] = true
 	_save()
 
