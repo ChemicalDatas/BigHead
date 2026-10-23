@@ -9,7 +9,11 @@ extends RefCounted
 ## have four legs and no arms. Arms and legs belong to the body: they stay put
 ## while the head bobbles.
 
-const TEXTURE_BOX := Rect2(-110, 30, 220, 150)
+const TEXTURE_BOX := Rect2(-90, 30, 180, 150)
+
+## People bodies are drawn this much narrower than their outlines below, so
+## the head stays the focal point. Animals keep their full width.
+const PEOPLE_WIDTH := 0.72
 
 const GOAT := 4
 const UNICORN := 5
@@ -30,12 +34,25 @@ static func is_animal(shape: int) -> bool:
 	return shape == GOAT or shape == UNICORN
 
 
+## Horizontal scale for a body shape (see PEOPLE_WIDTH).
+static func width_scale(shape: int) -> float:
+	return 1.0 if is_animal(shape) else PEOPLE_WIDTH
+
+
+static func _slim(shape: int, pts: PackedVector2Array) -> PackedVector2Array:
+	var k := width_scale(shape)
+	var out := PackedVector2Array()
+	for p in pts:
+		out.append(Vector2(p.x * k, p.y))
+	return out
+
+
 ## Both arms (right, then left), or none for animals.
 static func arms(shape: int) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
 	if not _ARMS.has(shape):
 		return out
-	var right := PackedVector2Array(_ARMS[shape])
+	var right := _slim(shape, PackedVector2Array(_ARMS[shape]))
 	var left := PackedVector2Array()
 	for p in right:
 		left.append(Vector2(-p.x, p.y))
@@ -47,7 +64,7 @@ static func arms(shape: int) -> Array[PackedVector2Array]:
 static func hands(shape: int) -> Array[Vector2]:
 	var out: Array[Vector2] = []
 	if _HANDS.has(shape):
-		var h: Vector2 = _HANDS[shape]
+		var h: Vector2 = _HANDS[shape] * Vector2(width_scale(shape), 1.0)
 		out.append(h)
 		out.append(Vector2(-h.x, h.y))
 	return out
@@ -59,6 +76,10 @@ static func bare_arms(shape: int) -> bool:
 
 
 static func outline(shape: int) -> PackedVector2Array:
+	return _slim(shape, _full_outline(shape))
+
+
+static func _full_outline(shape: int) -> PackedVector2Array:
 	match shape:
 		1:  # Hoodie
 			return PackedVector2Array([

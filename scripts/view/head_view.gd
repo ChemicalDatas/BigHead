@@ -285,7 +285,10 @@ func _draw_base_and_body() -> void:
 		draw_colored_polygon(body, Color.WHITE, BodyShapes.uvs(body), body_texture)
 	else:
 		_fill(body, look, 60.0)
+		# Trim coordinates are for the full-width outline; squeeze them to match.
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2(BodyShapes.width_scale(shape), 1.0))
 		_draw_body_details(shape, look)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	draw_polyline(_closed(body), OUTLINE, 4.0, true)
 
 
