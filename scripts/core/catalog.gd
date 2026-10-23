@@ -21,7 +21,7 @@ const BASES := {
 	"accessory": ["glasses", "party_hat", "crown", "goat_horns", "wizard_hat", "unicorn_horn"],
 	## What holds the head up. The spring-neck Bobble is the default and isn't an
 	## item (rig index 0, like "no accessory"); the rest are collected.
-	"rig": ["balloon"],
+	"rig": ["balloon", "marionette"],
 }
 
 const LABELS := {
@@ -31,7 +31,7 @@ const LABELS := {
 	"mouth": ["Smile", "Grin", "Oh", "Flat"],
 	"body": ["Suit", "Hoodie", "T-shirt", "Robe", "Goat", "Unicorn"],
 	"accessory": ["Glasses", "Party hat", "Crown", "Goat horns", "Wizard hat", "Unicorn horn"],
-	"rig": ["Balloon"],
+	"rig": ["Balloon", "Marionette"],
 }
 
 ## Variants per base.
@@ -63,6 +63,7 @@ const SUPER_RARE_ITEMS: Array[String] = [
 	"body/unicorn/0", "body/unicorn/1", "body/unicorn/2", "body/unicorn/3",
 	"accessory/unicorn_horn/0",
 	"rig/balloon",
+	"rig/marionette",
 ]
 ## Super-rares that only join the drop pool once the player has launched this
 ## many fireworks in total (the lifetime fireworks stat).

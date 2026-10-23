@@ -151,7 +151,7 @@ Run with `--unlock-all` to see everything.
 
 ## 4. Rigs
 
-Status: **Balloon built** (2026-10-23); Marionette not built yet.
+Status: **Built** (2026-10-23): Balloon and Marionette.
 
 Run with `--unlock-all` to pick the Balloon in Customize (Body tab, Rig).
 `--fireworks-launched=N` sets your lifetime fireworks count for the unlock
@@ -180,11 +180,17 @@ checks. Each pop prints `[rig] Balloon popped (<cause>)` in the terminal.
 
 **Marionette**
 
-- [ ] Marionette rig is locked until unlocked, then selectable
-- [ ] A control bar hangs above with strings to the arms
-- [ ] Dragging the bar moves the body, and the head ragdolls with the motion
-- [ ] Animal bodies (no arms) work sensibly on the marionette
-- [ ] Face swaps and eyes still work on the marionette
+- [ ] Without `--unlock-all`, Rig shows "Marionette (locked)"; with `--fireworks-launched=999` it never drops, from 1000 it can
+- [ ] A wooden control bar sits above the tallest hat, with strings to both hands
+- [ ] Goat and unicorn: four strings, one to the top of each leg
+- [ ] At rest the strings are slightly slack: arms hang, the body sits on the stand
+- [ ] Dragging the bar up lifts the body off the stand; the arms rise along the strings; animal legs hang straight down
+- [ ] Dragging side to side swings the body, and the head flops on its spring with the motion
+- [ ] Letting go: the bar springs back and the body drops back onto the stand
+- [ ] The head can still be clicked and dragged (and Whiplash still works)
+- [ ] The hint reads "Drag the bar or the head"
+- [ ] Face swaps, eyes and dizzy stars still work on the marionette
+- [ ] Level-Headed only counts once the puppet and head are both still
 
 ## 5. Desktop buddy
 

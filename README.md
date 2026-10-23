@@ -2,9 +2,8 @@
 
 Scapegoat A.L. LLC presents: become a bobblehead.
 
-**Current state: iteration 2A plus "Before the App ID" steps 1 to 3 and the
-Balloon rig from step 4**
-(catalog and inventory, drops, item variants, the unicorn set, arms and legs). The game runs as Valve's test app 480 (Spacewar) until Big Head
+**Current state: iteration 2A plus "Before the App ID" steps 1 to 4**
+(catalog and inventory, drops, item variants, the unicorn set, arms and legs, the Balloon and Marionette rigs). The game runs as Valve's test app 480 (Spacewar) until Big Head
 has its own Steam App ID.
 
 ## What's in it
@@ -28,10 +27,13 @@ has its own Steam App ID.
     on four legs.
   - The super-rare unicorn set (face, Rainbow mane, body, horn) comes from a
     separate 1-in-500 roll. Unicorn horns #2-#4 are multiplayer-only.
-  - *Rig*: Bobble (the spring neck) or Balloon. The Balloon joins the
-    super-rare roll after 500 fireworks in total; its head floats on a string
-    from the hand and pops on a whiplash fling, the floor or a rocket hit,
-    then reinflates.
+  - *Rig*: Bobble (the spring neck), Balloon or Marionette. The rigs join
+    the super-rare roll after 500 (Balloon) and 1,000 (Marionette)
+    fireworks in total. The Balloon head floats on a string from the hand
+    and pops on a whiplash fling, the floor or a rocket hit, then
+    reinflates. The Marionette hangs from a control bar you drag: strings to
+    the hands (or an animal's four legs) lift and swing it, and the head
+    flops along.
   - Every accessory and body comes in four numbered styles (#1-#4): same
     shape, different colors and patterns. Each style is its own item to
     collect. "Save template…" gives you a guide PNG to paint over;

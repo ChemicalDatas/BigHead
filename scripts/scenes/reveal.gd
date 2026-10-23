@@ -136,7 +136,8 @@ func _update_hint() -> void:
 	var fireworks := "Right-click: fireworks"
 	if rockets > 1:
 		fireworks += " (x%d, thanks to %d Big Head friend%s)" % [rockets, rockets - 1, "" if rockets == 2 else "s"]
-	_hint.text = "Click or drag the head  ·  %s" % fireworks
+	var drag := "Drag the bar or the head" if _head.is_marionette() else "Click or drag the head"
+	_hint.text = "%s  ·  %s" % [drag, fireworks]
 
 
 func _run_reveal() -> void:
@@ -223,7 +224,7 @@ func _run_face_cycle() -> void:
 
 
 func _wait_until_not_dragging() -> void:
-	while _head.bobble.dragging:
+	while _head.is_dragging():
 		await get_tree().process_frame
 
 
@@ -412,7 +413,7 @@ func _process(delta: float) -> void:
 				_head.pop_balloon(local, "firework")
 				break
 	# Perpetual Motion: keep it moving for 60 s. Level-Headed: leave it still for 5 min.
-	if _head.bobble.is_resting():
+	if _head.is_resting():
 		_still_for += delta
 		_moving_for = 0.0
 		_reported_bobbling = false

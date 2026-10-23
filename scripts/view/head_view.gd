@@ -41,6 +41,8 @@ const RAINBOW_HAIR := 5
 const UNICORN_HORN := 6   ## build.accessory (0 is "none")
 ## build.rig for the Balloon (0 is the spring-neck Bobble).
 const BALLOON_RIG := 1
+const MARIONETTE_RIG := 2
+const WOOD := Color("#a8743f")
 
 ## Pixels the cursor must move while held before a press becomes a drag.
 const DRAG_THRESHOLD := 8.0
@@ -78,6 +80,15 @@ var _balloon_frames := 0
 var _pop_dir := Vector2.DOWN
 var _snapshot: SubViewport = null
 var _scrap := PackedVector2Array()
+## Marionette: the puppet physics, and how the body is moved and tilted.
+var _puppet: MarionetteState = null
+var _puppet_key := ""
+var _body_xform := Transform2D.IDENTITY
+var _bar_grab := Vector2.ZERO
+## True while the mouse holds the control bar.
+var _bar_held := false
+## Swing of each arm (around the shoulder) or leg (around its top), radians.
+var _limb_swing: Array[float] = []
 ## Head scale while reinflating (1 when inflated).
 var _inflate := 1.0
 ## Seconds after reinflating during which touching the floor doesn't pop it
@@ -111,6 +122,8 @@ func radius() -> float:
 ## Height of the whole figure above the pivot (head plus the tallest hat) and below it (the base).
 func extent_above_pivot() -> float:
 	# The balloon floats about half a head higher than the bobble.
+	if is_marionette():
+		return radius() * 2.8 + 70.0  # the control bar above the hats
 	return radius() * (3.5 if is_balloon() else 2.8)
 
 
@@ -127,6 +140,28 @@ func is_balloon() -> bool:
 	return build.rig == BALLOON_RIG and not head_only
 
 
+func is_marionette() -> bool:
+	return build.rig == MARIONETTE_RIG and not head_only and show_body
+
+
+## Still, for Level-Headed (and moving, for Perpetual Motion): on the
+## marionette the puppet has to be still too.
+func is_resting() -> bool:
+	if _puppet != null and not _puppet.is_resting():
+		return false
+	return bobble.is_resting()
+
+
+func is_dragging() -> bool:
+	return bobble.dragging or (_puppet != null and _puppet.dragging)
+
+
+## A point in this node's space, in the body's own space (they differ only
+## while the marionette moves the body).
+func _to_body_space(p: Vector2) -> Vector2:
+	return _body_xform.affine_inverse() * p
+
+
 ## True when a point (local space) is on an inflated balloon head.
 func hits_balloon(point: Vector2) -> bool:
 	return is_balloon() and _balloon == Balloon.INFLATED and point.distance_to(head_center()) <= radius() * 0.95
@@ -138,7 +173,14 @@ func _apply_rig() -> void:
 	_balloon = Balloon.INFLATED
 	_inflate = 1.0
 	_free_snapshot()
-	if is_balloon():
+	_puppet = null
+	_puppet_key = ""
+	_body_xform = Transform2D.IDENTITY
+	if is_marionette():
+		bobble = BobbleState.new()
+		_rope = null
+		_configure_marionette()
+	elif is_balloon():
 		var balloon := BalloonState.new()
 		bobble = balloon
 		_configure_balloon()
@@ -170,6 +212,72 @@ func _rope_set_length(length: float) -> void:
 		_rope.set_length(length)
 
 
+## Strings to the hands (people) or the four leg tops (animals), from a bar
+## that rests above the tallest hat. Rebuilt when the body or head size changes.
+func _configure_marionette() -> void:
+	var r := radius()
+	var shape := build.body_shape
+	var key := "%d/%.1f" % [shape, r]
+	if key == _puppet_key:
+		return
+	_puppet_key = key
+	_puppet = MarionetteState.new()
+	var attach: Array[Vector2] = []
+	var bar_points: Array[Vector2] = []
+	if BodyShapes.is_animal(shape):
+		for leg in BodyShapes.legs(shape):
+			var top := Vector2(leg.get_center().x, leg.position.y + 4.0)
+			attach.append(top)
+			bar_points.append(Vector2(top.x * 2.4, 0))
+	else:
+		for hand in BodyShapes.hands(shape):
+			attach.append(hand)
+			bar_points.append(Vector2(signf(hand.x) * maxf(r * 1.15, absf(hand.x)), 0))
+	_puppet.configure(attach, bar_points, Vector2(0, -(r * 2.8 + 40.0)))
+	_limb_swing.clear()
+	for i in attach.size():
+		_limb_swing.append(0.0)
+
+
+func _marionette_physics(delta: float) -> void:
+	_configure_marionette()
+	if _bar_held:
+		_puppet.drag_target = get_local_mouse_position() - _bar_grab - _puppet.bar_rest
+	_puppet.step(delta)
+	_body_xform = Transform2D(_puppet.angle, _puppet.body)
+	# The head flops with the body: its spring neck feels the body's motion.
+	var push := _puppet.body_acceleration.rotated(-_puppet.angle).limit_length(6000.0)
+	bobble.offset_velocity -= push * delta * 0.6
+	bobble.angular_velocity -= (push.x * 0.0035 + clampf(_puppet.angular_acceleration, -200.0, 200.0) * 0.5) * delta
+	if bobble.dragging:
+		var mouse := _to_body_space(get_local_mouse_position())
+		var instant := (mouse - _last_mouse) / maxf(delta, 0.0001)
+		_mouse_velocity = _mouse_velocity.lerp(instant, 0.5)
+		_last_mouse = mouse
+		bobble.update_drag(mouse - _grab_offset)
+	bobble.step(delta)
+	_update_limb_swing(delta)
+
+
+## Arms swing toward a taut string; legs hang straight down while lifted.
+func _update_limb_swing(delta: float) -> void:
+	var shape := build.body_shape
+	var blend := 1.0 - exp(-10.0 * delta)
+	var lifted := clampf(-_puppet.body.y / 20.0, 0.0, 1.0)
+	var arms := BodyShapes.arms(shape)
+	for i in _limb_swing.size():
+		var target := 0.0
+		if BodyShapes.is_animal(shape):
+			target = (-_puppet.angle + clampf(-_puppet.bar_velocity.x * 0.0008, -0.4, 0.4)) * lifted
+		elif i < arms.size():
+			var shoulder := (arms[i][0] + arms[i][1]) * 0.5
+			var hand := _puppet.attach[i]
+			var to_bar := _to_body_space(_puppet.bar_point(i)) - shoulder
+			var rest_dir := hand - shoulder
+			target = clampf(rest_dir.angle_to(to_bar), -1.3, 1.3) * _puppet.tension(i)
+		_limb_swing[i] = lerpf(_limb_swing[i], target, blend)
+
+
 func _physics_process(delta: float) -> void:
 	if head_only:
 		return
@@ -177,6 +285,9 @@ func _physics_process(delta: float) -> void:
 		_apply_rig()
 	if is_balloon():
 		_balloon_physics(delta)
+		return
+	if is_marionette():
+		_marionette_physics(delta)
 		return
 	if bobble.dragging:
 		var mouse := get_local_mouse_position()
@@ -350,7 +461,7 @@ func _update_gaze(delta: float) -> void:
 	if look_at_cursor:
 		var r := radius()
 		var c := Vector2(0.0, -r * 0.92)
-		var in_head := (get_local_mouse_position() - bobble.offset).rotated(-bobble.angle - _look_tilt) - c
+		var in_head := (_to_body_space(get_local_mouse_position()) - bobble.offset).rotated(-bobble.angle - _look_tilt) - c
 		var dist := in_head.length()
 		if dist > 0.001:
 			target = in_head / dist * (dist / (dist + r * 1.5))
@@ -371,8 +482,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and _pressing and _press_on_head and not bobble.dragging:
 		if get_local_mouse_position().distance_to(_press_position) > DRAG_THRESHOLD:
 			# The head is grabbed where it was pressed: keep that point under the cursor.
-			_grab_offset = _press_position - bobble.offset
-			_last_mouse = get_local_mouse_position()
+			_grab_offset = _to_body_space(_press_position) - bobble.offset
+			_last_mouse = _to_body_space(get_local_mouse_position())
 			_mouse_velocity = Vector2.ZERO
 			bobble.begin_drag()
 
@@ -380,6 +491,13 @@ func _unhandled_input(event: InputEvent) -> void:
 func _begin_press() -> void:
 	_pressing = true
 	_press_position = get_local_mouse_position()
+	if is_marionette() and _on_bar(_press_position):
+		# The control bar: dragging it works the puppet.
+		_press_on_head = false
+		_bar_grab = _press_position - _puppet.bar_center()
+		_bar_held = true
+		_puppet.begin_drag()
+		return
 	_press_on_head = _press_position.distance_to(head_center()) <= radius() * 1.15
 	if is_balloon() and _balloon != Balloon.INFLATED:
 		_press_on_head = false  # nothing to grab while it's popped
@@ -387,6 +505,10 @@ func _begin_press() -> void:
 
 func _end_press() -> void:
 	_pressing = false
+	if _bar_held:
+		_bar_held = false
+		_puppet.end_drag()
+		return
 	if bobble.dragging:
 		bobble.end_drag(_mouse_velocity)
 		var speed := _mouse_velocity.length()
@@ -402,9 +524,23 @@ func _end_press() -> void:
 	clicked.emit(_press_on_head)
 
 
-## Head centre in this node's local space, including the current bobble.
+## Head centre in this node's local space, including the current bobble (and,
+## on the marionette, where the body has been moved).
 func head_center() -> Vector2:
-	return bobble.offset + Vector2(0.0, -radius() * 0.92).rotated(bobble.angle)
+	return _body_xform * (bobble.offset + Vector2(0.0, -radius() * 0.92).rotated(bobble.angle))
+
+
+## The control bar's half-width: its outermost string plus a handle's worth.
+func _bar_half_width() -> float:
+	var half := 30.0
+	for p in _puppet.bar_points:
+		half = maxf(half, absf(p.x) + 16.0)
+	return half
+
+
+func _on_bar(p: Vector2) -> bool:
+	var local := p - _puppet.bar_center()
+	return absf(local.x) <= _bar_half_width() + 10.0 and absf(local.y) <= 26.0
 
 
 ## The reveal: squash, swap the face for the Steam avatar, spring it out with a
@@ -456,6 +592,9 @@ func _draw() -> void:
 	if is_balloon() and _rope != null:
 		_draw_balloon(c, r)
 		return
+	if is_marionette() and _puppet != null:
+		_draw_marionette(c, r)
+		return
 	_draw_neck()
 	draw_set_transform(bobble.offset, bobble.angle + _look_tilt, Vector2.ONE)
 	_draw_head_layers(c, r, true)
@@ -470,6 +609,51 @@ func _draw_head_layers(c: Vector2, r: float, stars: bool) -> void:
 	_draw_accessory(c, r)
 	if stars and _stars_left > 0.0:
 		_draw_dizzy_stars(c, r)
+
+
+# --------------------------------------------------------------------------
+# Marionette rig
+# --------------------------------------------------------------------------
+
+## Body and stand are already drawn (moved by the puppet); this adds the
+## strings, the neck and head riding on the body, and the control bar.
+func _draw_marionette(c: Vector2, r: float) -> void:
+	for i in _puppet.attach.size():
+		var end := _body_xform * _limb_end(i)
+		var from := _puppet.bar_point(i)
+		draw_line(from, end, OUTLINE, 3.0, true)
+		draw_line(from, end, STRING_COLOR, 1.4, true)
+	draw_set_transform_matrix(_body_xform)
+	_draw_neck()
+	draw_set_transform_matrix(_body_xform * Transform2D(bobble.angle + _look_tilt, bobble.offset))
+	_draw_head_layers(c, r, true)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	_draw_control_bar()
+
+
+## Where string i ties on, after its arm or leg has swung.
+func _limb_end(i: int) -> Vector2:
+	var attach := _puppet.attach[i]
+	var arms := BodyShapes.arms(build.body_shape)
+	if i < arms.size() and not BodyShapes.is_animal(build.body_shape):
+		var shoulder := (arms[i][0] + arms[i][1]) * 0.5
+		return shoulder + (attach - shoulder).rotated(_limb_swing[i])
+	return attach  # leg tops don't move when the legs swing
+
+
+## A wooden cross: the long plank the strings hang from, and a short one
+## across it as a handle.
+func _draw_control_bar() -> void:
+	var center := _puppet.bar_center()
+	var half := _bar_half_width()
+	var plank := Rect2(center + Vector2(-half, -7), Vector2(half * 2.0, 14))
+	draw_rect(plank, WOOD)
+	draw_rect(plank, OUTLINE, false, 3.0)
+	var handle := Rect2(center + Vector2(-7, -28), Vector2(14, 56))
+	draw_rect(handle, WOOD.darkened(0.12))
+	draw_rect(handle, OUTLINE, false, 3.0)
+	for p in _puppet.bar_points:
+		draw_circle(center + p, 4.0, OUTLINE)
 
 
 # --------------------------------------------------------------------------
@@ -590,7 +774,9 @@ func _draw_base_and_body() -> void:
 	draw_line(Vector2(-120, 180), Vector2(-120, 205), OUTLINE, 4.0)
 	draw_line(Vector2(120, 180), Vector2(120, 205), OUTLINE, 4.0)
 	# Body: deliberately tiny next to the head. Arms, legs and the tail go
-	# behind the torso so their inner ends tuck under it.
+	# behind the torso so their inner ends tuck under it. The marionette can
+	# lift and tilt it off the stand (_body_xform).
+	draw_set_transform_matrix(_body_xform)
 	var shape := build.body_shape
 	var body := BodyShapes.outline(shape)
 	var textured := build.use_body_texture and body_texture != null
@@ -604,19 +790,31 @@ func _draw_base_and_body() -> void:
 	else:
 		_fill(body, look, 60.0)
 		# Trim coordinates are for the full-width outline; squeeze them to match.
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2(BodyShapes.width_scale(shape), 1.0))
+		draw_set_transform_matrix(_body_xform * Transform2D(0.0, Vector2(BodyShapes.width_scale(shape), 1.0), 0.0, Vector2.ZERO))
 		_draw_body_details(shape, look)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		draw_set_transform_matrix(_body_xform)
 	draw_polyline(_closed(body), OUTLINE, 4.0, true)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## Sleeves take the body's variant (or the uploaded texture); hands, and the
 ## T-shirt's bare arms, take the skin color.
 func _draw_arms(shape: int, look: Dictionary, textured: bool) -> void:
-	for hand in BodyShapes.hands(shape):
+	var arms := BodyShapes.arms(shape)
+	var hands := BodyShapes.hands(shape)
+	for i in arms.size():
+		var swing := _swing(i)
+		if swing != 0.0:
+			var shoulder := (arms[i][0] + arms[i][1]) * 0.5
+			var turned := PackedVector2Array()
+			for p in arms[i]:
+				turned.append(shoulder + (p - shoulder).rotated(swing))
+			arms[i] = turned
+			hands[i] = shoulder + (hands[i] - shoulder).rotated(swing)
+	for hand in hands:
 		draw_circle(hand, BodyShapes.HAND_RADIUS, build.skin_color())
 		draw_arc(hand, BodyShapes.HAND_RADIUS, 0, TAU, 20, OUTLINE, 3.0, true)
-	for arm in BodyShapes.arms(shape):
+	for arm in arms:
 		if BodyShapes.bare_arms(shape):
 			draw_colored_polygon(arm, build.skin_color())
 		elif textured:
@@ -630,7 +828,14 @@ func _draw_arms(shape: int, look: Dictionary, textured: bool) -> void:
 ## trim color when the variant has one.
 func _draw_legs(shape: int, look: Dictionary, textured: bool) -> void:
 	var hoof_color: Color = look.get("trim", Color("#3a2a20"))
-	for leg in BodyShapes.legs(shape):
+	var legs := BodyShapes.legs(shape)
+	for i in legs.size():
+		var leg := legs[i]
+		var swing := _swing(i)
+		if swing != 0.0:
+			# A swinging leg: drawn turned about its top, hoof included.
+			var top := Vector2(leg.get_center().x, leg.position.y)
+			draw_set_transform_matrix(_body_xform * Transform2D(swing, top) * Transform2D(0.0, -top))
 		var pts := BodyShapes.rect_points(leg)
 		if textured:
 			draw_colored_polygon(pts, Color.WHITE, BodyShapes.uvs(pts), body_texture)
@@ -640,6 +845,15 @@ func _draw_legs(shape: int, look: Dictionary, textured: bool) -> void:
 		var hoof := Rect2(leg.position.x - 1, leg.end.y - 9, leg.size.x + 2, 9)
 		draw_rect(hoof, hoof_color)
 		draw_rect(hoof, OUTLINE, false, 3.0)
+		if swing != 0.0:
+			draw_set_transform_matrix(_body_xform)
+
+
+## How far limb i is swung (marionette only; 0 otherwise).
+func _swing(i: int) -> float:
+	if _puppet == null or i >= _limb_swing.size():
+		return 0.0
+	return _limb_swing[i]
 
 
 ## The unicorn's tail: six rainbow strands, the same on every style.

@@ -155,7 +155,7 @@ Everything here builds and tests on app 480 while Steam partner verification run
 **4. Rigs**
 
 - [x] Balloon rig, with the Pop Goes the Head achievement
-- [ ] Marionette rig (needs the arms from step 3)
+- [x] Marionette rig: strings to the hands, or to the four leg tops on the goat and unicorn
 
 **5. Desktop buddy**
 
@@ -247,7 +247,7 @@ Decided on 2026-10-20 and now scheduled in the "Before the App ID" roadmap above
 - **Bobble:** today's spring neck.
 - **Balloon:** the head floats on a string tied to the right hand (an animal's back), using a rope simulation and buoyancy; drag pulls the string taut, release lets it bob back up. It pops on a whiplash-speed fling, when it touches the floor, or when a climbing rocket flies into it. The pop: a tear opens at the hit point and the skin snaps back across the head until only a small scrap is left; the scrap goes limp and drops on the string, then reinflates after 3 seconds.
 - **Rig unlocks:** each rig is a super-rare drop, but only joins the super-rare pool after a lifetime fireworks milestone: Balloon at 500, Marionette at 1,000. Picked in Customize, Body tab, Rig (Bobble is always available).
-- **Marionette:** a control bar above with strings to the arms; the player drags the bar and the head ragdolls with the motion.
+- **Marionette:** a wooden control bar above the head with strings to the hands (people) or the four leg tops (goat, unicorn). The player drags the bar: once the strings go taut they lift and swing the body off its stand, the arms rise along the strings, legs hang straight down, and the head flops on its spring neck with the motion. Let go and the bar springs back and the body drops back onto the stand. The head can still be clicked and dragged.
 - **Arms on every people body:** sleeves matching the body (suit, hoodie, robe), short sleeves with bare arms for the T-shirt. They stay still on the bobble rig and carry the strings on the marionette rig. Animal bodies have no arms: the goat and the unicorn both stand on four legs. Arms and legs are part of the body template, so uploaded textures cover them too, and a blank template (outlines only) is also downloadable to make painting arms easier.
 - The head layers draw the same on every rig; only what moves them changes.
 
@@ -348,6 +348,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Unicorn set rarity | Face, rainbow mane, all four unicorn body styles and horn #1 are super-rare; horns #2-#4 are a separate multiplayer-only tier no single-player roll can give |
 | Rainbow mane | Fixed rainbow colors; the hair color picker greys out |
 | Rig unlocks | Super-rare drops gated by lifetime fireworks: Balloon after 500, Marionette after 1,000 |
+| Marionette strings | Hands on people; the four leg tops on the goat and unicorn |
 | Balloon pops | Whiplash fling, touching the floor, or a rocket hit; the tear spreads from the hit point, a scrap is left, it reinflates after 3 s |
 | Body proportions | People bodies drawn at 72% width; goat and unicorn keep full width |
 | Variant names | Numbered #1-#4 (e.g. "Wizard hat #3"); #1 is each item's original look |
