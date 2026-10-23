@@ -2,8 +2,8 @@
 
 Scapegoat A.L. LLC presents: become a bobblehead.
 
-**Current state: iteration 2A plus "Before the App ID" steps 1 and 2, and
-part of step 3** (catalog and inventory, drops, item variants). The game runs as Valve's test app 480 (Spacewar) until Big Head
+**Current state: iteration 2A plus "Before the App ID" steps 1 to 3**
+(catalog and inventory, drops, item variants, the unicorn set, arms and legs). The game runs as Valve's test app 480 (Spacewar) until Big Head
 has its own Steam App ID.
 
 ## What's in it
@@ -22,11 +22,15 @@ has its own Steam App ID.
   - *Head*: face shape, skin color, hair, hair color, eyes, mouth, accessory
     (Glasses, Party hat, Crown, Goat horns, Wizard hat) and its Style, and a
     head-size slider (80%–150%; maxing it unlocks Swelled Head).
-  - *Body*: Suit, Hoodie, T-shirt, Robe or Goat and its Style, or your own
-    uploaded texture.
+  - *Body*: Suit, Hoodie, T-shirt, Robe, Goat or Unicorn and its Style, or
+    your own uploaded texture. People have arms; the goat and unicorn stand
+    on four legs.
+  - The super-rare unicorn set (face, Rainbow mane, body, horn) comes from a
+    separate 1-in-500 roll. Unicorn horns #2-#4 are multiplayer-only.
   - Every accessory and body comes in four numbered styles (#1-#4): same
     shape, different colors and patterns. Each style is its own item to
-    collect. "Save body template…" gives you a PNG to paint over.
+    collect. "Save template…" gives you a guide PNG to paint over;
+    "Save blank template…" gives plain outlines.
 - **Customize** from the playground has Save and Cancel; Esc cancels. Cancel
   throws away every change, uploads included. Either way you go straight back
   to the playground without replaying the reveal.
@@ -141,7 +145,9 @@ scripts/
   autoload/   game.gd — wiring, routing, dev mappings, COMPANY_NAME
 assets/
   fonts/      Bangers, Luckiest Guy, Lobster, Pacifico, Press Start 2P (+ licenses)
-  body_template.png
+  body_template.png, body_template_blank.png
+tools/        dump_body_shapes.gd + make_body_templates.py: regenerate both
+              templates from BodyShapes after changing a body outline
 ```
 
 ## Iteration 2B checklist (after the App ID)

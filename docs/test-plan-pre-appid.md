@@ -85,8 +85,7 @@ bodies (each in a random style, #1-#4), and no accessories.
 ## 2. Drops
 
 Status: **Built** (2026-10-22). Drop chance is 1 in 20 right-clicks; the
-super-rare roll is 1 in 500 but has nothing in its pool until the unicorn set
-arrives in step 3. Drops start once the reveal has finished.
+super-rare roll is 1 in 500 and holds the unicorn set (added in step 3). Drops start once the reveal has finished.
 
 Run with `--drop-rate=1` so every right-click drops something, then again
 without the flag to check normal rarity.
@@ -106,9 +105,8 @@ without the flag to check normal rarity.
 
 ## 3. Content
 
-Status: **Partly built** (2026-10-22): variants, the wizard hat and the Style
-pickers are in. Still to come: the unicorn set, arms and legs, and the
-updated templates.
+Status: **Built** (2026-10-23): variants, the wizard hat, the Style pickers,
+the unicorn set, arms and legs, slimmer people bodies, and both templates.
 
 Run with `--unlock-all` to see everything.
 
@@ -128,10 +126,13 @@ Run with `--unlock-all` to see everything.
 
 **Unicorn set**
 
-- [ ] Unicorn head, rainbow hair and unicorn body (with rainbow tail) are selectable with `--unlock-all`
-- [ ] The unicorn horn is a hat, with four variants
-- [ ] Only one horn variant can drop in single player; the other three never drop yet
+- [ ] Unicorn face (ears, muzzle), Rainbow mane and Unicorn body (rainbow tail, four styles) are selectable with `--unlock-all`
+- [ ] The unicorn ears stay on when the Steam face pops
+- [ ] The unicorn horn is a hat, with four variants; tall hair tucks under it
+- [ ] Only horn #1 can drop in single player; #2-#4 read "(multiplayer)" when locked and never drop yet
+- [ ] With Rainbow mane chosen, the Hair color picker is greyed out
 - [ ] Without `--unlock-all`, unicorn pieces are locked until dropped
+- [ ] A super-rare drop comes in a rainbow-wrapped gift box (try `--drop-rate=1` for a while; it's 1 in 500)
 
 **Arms and legs**
 
@@ -139,12 +140,13 @@ Run with `--unlock-all` to see everything.
 - [ ] T-shirt has short sleeves with bare arms in the skin color
 - [ ] Goat and unicorn have no arms and stand on four legs
 - [ ] Arms stay still on the bobble rig
+- [ ] People bodies are slim enough that the head is clearly the focal point; the goat and unicorn keep full width
 - [ ] An uploaded body texture covers the arms and legs too
 
 **Templates**
 
-- [ ] "Save body template…" includes the arm and leg areas
-- [ ] A blank template (outlines only) can also be saved
+- [ ] "Save template…" includes the arm and leg areas
+- [ ] "Save blank template…" saves plain outlines only
 - [ ] Painting on either template and uploading it lines up with the body, arms and legs
 
 ## 4. Rigs
