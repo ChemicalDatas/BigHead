@@ -316,6 +316,8 @@ func _make_item_picker(category: String) -> Control:
 		func() -> String:
 			if category == "accessory_variant" and _build.accessory == 0:
 				return "-"
+			if category == "mouth" and not Catalog.animal_face(_build.face_shape).is_empty():
+				return "The face's own"  # animal faces have their mouth built in
 			var index := _build.get_choice(category)
 			var text := HeadBuild.option_label(category, index)
 			if _build.is_option_owned(category, index, Game.inventory):
@@ -333,7 +335,7 @@ func _make_item_picker(category: String) -> Control:
 				_layout()  # the balloon floats higher, so the figure refits
 			if category == "accessory" or category == "body_shape":
 				_build.select_owned_variant(category, Game.inventory)
-			for key in ["accessory_variant", "body_variant"]:
+			for key in ["accessory_variant", "body_variant", "mouth"]:
 				if _value_labels.has(key):
 					(_value_labels[key] as Callable).call(),
 		func() -> bool: return not _build.is_option_owned(category, _build.get_choice(category), Game.inventory))

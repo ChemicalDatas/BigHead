@@ -13,7 +13,11 @@ extends RefCounted
 const SLOTS: Array[String] = ["face_shape", "hair", "eyes", "mouth", "body", "accessory", "rig"]
 
 const BASES := {
-	"face_shape": ["round", "oval", "square", "egg", "unicorn"],
+	"face_shape": [
+		"round", "oval", "square", "egg",
+		"unicorn", "unicorn_lavender", "unicorn_pink", "unicorn_midnight",
+		"goat_cream", "goat_brown", "goat_black", "goat_spotted",
+	],
 	"hair": ["bald", "buzz", "spiky", "mop", "mohawk", "rainbow"],
 	"eyes": ["dots", "googly", "happy", "angry"],
 	"mouth": ["smile", "grin", "oh", "flat"],
@@ -25,13 +29,26 @@ const BASES := {
 }
 
 const LABELS := {
-	"face_shape": ["Round", "Oval", "Square", "Egg", "Unicorn"],
+	"face_shape": [
+		"Round", "Oval", "Square", "Egg",
+		"Pearl unicorn", "Lavender unicorn", "Pink unicorn", "Midnight unicorn",
+		"Cream goat", "Brown goat", "Black goat", "Spotted goat",
+	],
 	"hair": ["Bald", "Buzz", "Spiky", "Mop", "Mohawk", "Rainbow mane"],
 	"eyes": ["Dots", "Googly", "Happy", "Angry"],
 	"mouth": ["Smile", "Grin", "Oh", "Flat"],
 	"body": ["Suit", "Hoodie", "T-shirt", "Robe", "Goat", "Unicorn"],
 	"accessory": ["Glasses", "Party hat", "Crown", "Goat horns", "Wizard hat", "Unicorn horn"],
 	"rig": ["Balloon", "Marionette"],
+}
+
+## Animal faces: one standalone face per animal body style, colored and
+## patterned like that body (#1-#4 in Variants.BODIES). Each is its own item.
+const ANIMAL_FACES := {
+	"unicorn": ["unicorn", 0], "unicorn_lavender": ["unicorn", 1],
+	"unicorn_pink": ["unicorn", 2], "unicorn_midnight": ["unicorn", 3],
+	"goat_cream": ["goat", 0], "goat_brown": ["goat", 1],
+	"goat_black": ["goat", 2], "goat_spotted": ["goat", 3],
 }
 
 ## Variants per base.
@@ -59,7 +76,8 @@ enum Rarity { COMMON, SUPER_RARE, MULTIPLAYER }
 ## The unicorn set. Every style of the unicorn body counts; only horn #1 drops
 ## in single player.
 const SUPER_RARE_ITEMS: Array[String] = [
-	"face_shape/unicorn", "hair/rainbow",
+	"face_shape/unicorn", "face_shape/unicorn_lavender", "face_shape/unicorn_pink", "face_shape/unicorn_midnight",
+	"hair/rainbow",
 	"body/unicorn/0", "body/unicorn/1", "body/unicorn/2", "body/unicorn/3",
 	"accessory/unicorn_horn/0",
 	"rig/balloon",
@@ -82,6 +100,14 @@ static func starting_items(rng: RandomNumberGenerator) -> Array[String]:
 			var base: int = (BASES[slot] as Array).find(base_name)
 			ids.append(item_id(slot, base, rng.randi_range(0, variant_count(slot) - 1)))
 	return ids
+
+
+## For an animal face (face_shape index): ["unicorn" | "goat", body style]; else [].
+static func animal_face(face_shape: int) -> Array:
+	var faces: Array = BASES["face_shape"]
+	if face_shape < 0 or face_shape >= faces.size():
+		return []
+	return ANIMAL_FACES.get(faces[face_shape], [])
 
 
 static func base_count(slot: String) -> int:

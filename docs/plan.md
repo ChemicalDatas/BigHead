@@ -162,6 +162,12 @@ Everything here builds and tests on app 480 while Steam partner verification run
 - [ ] Transparent click-through window with the bobblehead; eyes follow the cursor where the platform allows
 - [ ] Timed drops: while the desktop buddy runs, a drop happens at a random time every 60 to 90 minutes, from the regular pool (no super-rares; owned items burst into confetti); timed drops pause while 12 gift boxes are waiting to be clicked
 
+**6. Room and shelf**
+
+- [ ] The default background becomes a room with a shelf on the wall
+- [ ] A custom background replaces the room's wall art; the shelf always stays
+- [ ] The shelf shows friends' bobbleheads (see Iteration 3, Friends shelf); before the App ID it's filled from `--fake-friends=N`
+
 ### Parallel track: ready for 2B
 
 - [ ] Achievements sheet: API name, display name, description and icons for every achievement (check Valve's icon size first)
@@ -185,6 +191,7 @@ Iteration 2B is configuration and store work; the only code change is removing t
 - **Rich Presence:** a localization file with "Being a Big Head"; friends only see it under your own App ID.
 - **Steam Cloud:** sync the saved head and uploaded images across machines.
 - Store page, capsule art, screenshots, AI-content survey (none), and build uploads.
+- Remove the command-line test flags from release builds and settle which cheat codes stay (see "Before shipping").
 
 ### Store page assets
 
@@ -208,8 +215,8 @@ Screenshots can be rendered straight from the game at 1920 × 1080 with the same
 
 Iteration 3 adds friends, in order of cost: local first, networked second.
 
-1. **Friends shelf** (no networking): friends' Steam avatars as bobbleheads on a shelf, read locally through `get_friends()`.
-2. **Lobby playground:** friends' heads share one screen over Steam lobbies and Steam Networking Sockets (relayed, no port forwarding).
+1. **Friends shelf** (no networking): every Steam friend who owns Big Head stands on the shelf in your room as a small bobblehead, read locally through `get_friends()`. Each one has that friend's Steam avatar as its face, and a default body, hair and accessory of its own (picked from the friend's Steam ID, so it's the same every time). Their own custom builds aren't fetched: nothing has to be shared or synced to fill the shelf.
+2. **Lobby playground:** friends' heads share one room over Steam lobbies and Steam Networking Sockets (relayed, no port forwarding). Each player walks their own bobblehead around the room. The room grows with the number of friends in the game at the time: a cozy room for two, wider for a full lobby.
 3. **Interaction:** flick, drag and boop each other's heads; head-to-head collisions; firework duels.
 4. **"Big Head Off":** longest bobble from one flick, posted to a Steam leaderboard.
 5. **Cosmetics:** more builder hats, bodies and banners; Steam Workshop for player-made hats later.
@@ -218,7 +225,7 @@ Iteration 3 adds friends, in order of cost: local first, networked second.
 
 - Trading between players means Steam Inventory Service: item definitions, tradable flags, and possibly Steam Market listings. That needs the App ID and Valve setup, and tradable items with market value bring fraud and regulatory questions.
 - A lighter first version: furniture unlocked through play and achievements, with trading added later.
-- Open question: does the room replace the uploaded background, or sit on top of it?
+- Decided: the room (with its shelf) is the default background. An uploaded background replaces the room's wall art; the shelf stays either way.
 
 Non-Steam players stay single-player: multiplayer requires Steam, so built-only heads never go online.
 
@@ -268,6 +275,24 @@ Uploads stay local. If sharing is ever wanted: friends in a live session send th
 ### Trading (not planned)
 
 Ruled out. It would move the inventory to Steam Inventory Service, conflict with duplicates becoming confetti, attach real-money value that invites scams and support load, and let players buy rarity instead of earning it.
+
+## Before shipping: test flags and cheat codes
+
+The command-line test flags are for development. **Remove them (or compile them out of release builds) before the game ships**, so players can't use them to unlock everything or fake progress:
+
+`--no-steam`, `--reset`, `--reset-achievement`, `--fake-friends=N`, `--fast-faces`, `--unlock-all`, `--reset-inventory`, `--drop-rate=N`, `--fireworks-launched=N`, and any added later (e.g. `--fast-timed-drops`).
+
+**In-game cheat codes:** some of these come back as codes typed while the game runs (no console, just typing the word in the playground). Build them as a list, then choose before shipping which stay in for players. Codes never unlock achievements or items, so the collection and Steam stats stay honest. Candidates:
+
+| Code idea | Effect | Keep for players? |
+| --- | --- | --- |
+| `confetti` | A confetti burst on demand | likely |
+| `party` | One big fireworks barrage | likely |
+| `dizzy` | Dizzy stars, ignoring the cooldown | likely |
+| `bighead` | Head size past the slider's maximum for the session (no Swelled Head) | maybe |
+| `fastfaces` | Fast face swaps for the session | maybe |
+| `tryon` | Preview every item in Customize for the session; can't save locked ones | maybe |
+| `dropall` | Every right-click drops something | dev only |
 
 ## Achievements
 
@@ -350,6 +375,12 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Rig unlocks | Super-rare drops gated by lifetime fireworks: Balloon after 500, Marionette after 1,000 |
 | Marionette strings | Hands on people; the four leg tops on the goat and unicorn |
 | Balloon pops | Whiplash fling, touching the floor, or a rocket hit; the tear spreads from the hit point, a scrap is left, it reinflates after 3 s |
+| Animal faces | One standalone face per animal body style (4 unicorn, 4 goat), colored like that body, with its own muzzle and mouth; the mouth picker doesn't apply. Unicorn faces super-rare, goat faces common |
+| Confetti | Paper pieces (strips, dots, stars, hearts, spirals) that flip and flutter, drawn in front of fireworks |
+| Default background | A room with a shelf of friends' bobbleheads; a custom background replaces the wall, the shelf stays |
+| Friends on the shelf | Steam avatar face plus a default body, hair and accessory per friend; their custom builds aren't fetched |
+| Multiplayer room | Players walk their bobbleheads around; the room grows with the number of friends in the game |
+| Test flags | Removed from release builds; some return as in-game cheat codes, chosen before shipping |
 | Body proportions | People bodies drawn at 72% width; goat and unicorn keep full width |
 | Variant names | Numbered #1-#4 (e.g. "Wizard hat #3"); #1 is each item's original look |
 | Starting body styles | The Suit and T-shirt each come in a random style for every new player |

@@ -355,7 +355,7 @@ func _burst_confetti(at: Vector2, amount: int) -> void:
 	burst.position = at
 	_drops.add_child(burst)
 	burst.burst()
-	get_tree().create_timer(2.5).timeout.connect(burst.queue_free)
+	burst.finished.connect(burst.queue_free)
 
 
 func _show_toast(text: String) -> void:

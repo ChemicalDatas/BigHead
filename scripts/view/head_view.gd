@@ -36,7 +36,6 @@ const RAINBOW: Array[Color] = [
 ]
 
 ## Indices into Catalog.BASES for the unicorn set's head parts.
-const UNICORN_FACE := 4
 const RAINBOW_HAIR := 5
 const UNICORN_HORN := 6   ## build.accessory (0 is "none")
 ## build.rig for the Balloon (0 is the spring-neck Bobble).
@@ -50,7 +49,7 @@ const DRAG_THRESHOLD := 8.0
 ## How quickly the eyes catch up with the cursor (higher = snappier).
 const GAZE_SMOOTHING := 8.0
 ## Largest head tilt toward the cursor, for faces whose eyes can't move (radians).
-const MAX_LOOK_TILT := 0.12
+const MAX_LOOK_TILT := 0.18
 
 ## Head radius at head_size 1.0. The build's head_size multiplies it.
 @export var base_radius := 140.0
@@ -413,7 +412,7 @@ func _spawn_shreds(at: Vector2) -> void:
 	shreds.angular_velocity_max = 720.0
 	shreds.scale_amount_min = 4.0
 	shreds.scale_amount_max = 8.0
-	shreds.color = build.skin_color()
+	shreds.color = _face_color()
 	add_child(shreds)
 	shreds.emitting = true
 	get_tree().create_timer(1.2).timeout.connect(shreds.queue_free)
@@ -464,7 +463,8 @@ func _update_gaze(delta: float) -> void:
 		var in_head := (_to_body_space(get_local_mouse_position()) - bobble.offset).rotated(-bobble.angle - _look_tilt) - c
 		var dist := in_head.length()
 		if dist > 0.001:
-			target = in_head / dist * (dist / (dist + r * 1.5))
+			# Saturates quickly: a cursor one head-radius away already gets ~70% of the range.
+			target = in_head / dist * (dist / (dist + r * 0.4))
 	var blend := 1.0 - exp(-GAZE_SMOOTHING * delta)
 	_gaze = _gaze.lerp(target, blend)
 	var tilt_target := clampf(_gaze.x, -1.0, 1.0) * MAX_LOOK_TILT if _looks_with_head() else 0.0
@@ -683,7 +683,7 @@ func _draw_balloon(c: Vector2, r: float) -> void:
 ## The little tied-off neck of the balloon, under the face.
 func _draw_knot(r: float) -> void:
 	var knot := PackedVector2Array([Vector2(-r * 0.07, r * 0.1), Vector2(0, -r * 0.02), Vector2(r * 0.07, r * 0.1)])
-	draw_colored_polygon(knot, build.skin_color().darkened(0.12))
+	draw_colored_polygon(knot, _face_color().darkened(0.12))
 	draw_polyline(_closed(knot), OUTLINE, 2.5, true)
 
 
@@ -713,7 +713,7 @@ func _draw_tearing_skin(c: Vector2, r: float) -> void:
 			uvs.append((q - origin) / (big * 2.0))
 		draw_colored_polygon(piece, Color.WHITE, uvs, texture)
 	# The rolled-up rubber at the edge of the tear, where it crosses the face.
-	var lip_color := build.skin_color().darkened(0.3)
+	var lip_color := _face_color().darkened(0.3)
 	for line in Geometry2D.intersect_polyline_with_polygon(_closed(hole), _face_polygon(build.face_shape, c, r)):
 		draw_polyline(line, lip_color, 4.0, true)
 
@@ -727,7 +727,7 @@ func _draw_scrap(r: float) -> void:
 	var angle := along.angle() - PI / 2.0 if along.length() > 0.01 else 0.0
 	var shrink := lerpf(1.7, 1.0, clampf(_balloon_t / 0.3, 0.0, 1.0))
 	draw_set_transform(tip, angle, Vector2(shrink, shrink))
-	var skin := build.skin_color()
+	var skin := _face_color()
 	draw_colored_polygon(_scrap, skin)
 	# Wrinkles where the empty skin folds over itself.
 	var fold := skin.darkened(0.28)
@@ -932,8 +932,10 @@ func _draw_face(c: Vector2, r: float) -> void:
 	var scaled := PackedVector2Array()
 	for p in outline:
 		scaled.append(c + (p - c) * face_scale)
-	if build.face_shape == UNICORN_FACE:
-		_draw_unicorn_ears(c, r)
+	var animal := _animal()
+	match animal:
+		"unicorn": _draw_unicorn_ears(c, r)
+		"goat": _draw_goat_ears(c, r)
 
 	if show_steam_face and steam_texture != null:
 		# The Steam avatar, masked to the chosen face shape.
@@ -947,13 +949,48 @@ func _draw_face(c: Vector2, r: float) -> void:
 		draw_polyline(_closed(scaled), OUTLINE, 5.0, true)
 		return
 
-	draw_colored_polygon(scaled, build.skin_color())
-	draw_polyline(_closed(scaled), OUTLINE, 5.0, true)
 	var s := face_scale
-	if build.face_shape == UNICORN_FACE:
-		_draw_muzzle(c, r, s)
+	if animal == "":
+		draw_colored_polygon(scaled, build.skin_color())
+	else:
+		_fill(scaled, _animal_look(), 60.0)
+	if animal == "goat":
+		_draw_goat_beard(c, r, s)
+	draw_polyline(_closed(scaled), OUTLINE, 5.0, true)
+	match animal:
+		"unicorn": _draw_unicorn_muzzle(c, r, s)
+		"goat": _draw_goat_muzzle(c, r, s)
 	_draw_eyes(c, r, s)
-	_draw_mouth(c, r, s)
+	if animal == "":
+		_draw_mouth(c, r, s)  # animal faces have their own mouth on the muzzle
+
+
+## "unicorn", "goat", or "" for a person's face.
+func _animal() -> String:
+	var face := Catalog.animal_face(build.face_shape)
+	return "" if face.is_empty() else str(face[0])
+
+
+## An animal face takes the colors and pattern of the matching body style.
+func _animal_look() -> Dictionary:
+	var face := Catalog.animal_face(build.face_shape)
+	return Variants.body(face[0], face[1])
+
+
+## The face's main color: skin, or the animal's coat.
+func _face_color() -> Color:
+	return build.skin_color() if _animal() == "" else _animal_look()["base"]
+
+
+## Dark enough lines to read on the face: dark ink on light faces, light on dark.
+func _ink() -> Color:
+	return Color("#f4eefc") if _face_color().get_luminance() < 0.3 and not (show_steam_face and steam_texture != null) else OUTLINE
+
+
+## A lighter shade for muzzles and ear insides, readable on any coat.
+func _muzzle_color() -> Color:
+	var coat := _face_color()
+	return coat.lerp(Color.WHITE, 0.45) if coat.get_luminance() < 0.3 else coat.lerp(Color("#f4a6c6"), 0.3)
 
 
 ## Pointed ears behind the unicorn face, with pink insides. They stay on
@@ -965,7 +1002,7 @@ func _draw_unicorn_ears(c: Vector2, r: float) -> void:
 			c + Vector2.from_angle(a) * r * 1.3,
 			c + Vector2.from_angle(a + 0.16) * r * 0.78,
 		])
-		draw_colored_polygon(ear, build.skin_color())
+		_fill(ear, _animal_look(), 60.0)
 		draw_polyline(_closed(ear), OUTLINE, 4.0, true)
 		var inner := PackedVector2Array([
 			c + Vector2.from_angle(a - 0.08) * r * 0.86,
@@ -975,19 +1012,61 @@ func _draw_unicorn_ears(c: Vector2, r: float) -> void:
 		draw_colored_polygon(inner, Color("#f4a6c6"))
 
 
-## A lighter muzzle with nostrils; the mouth is drawn on top of it.
-func _draw_muzzle(c: Vector2, r: float, s: Vector2) -> void:
+## Floppy goat ears sticking out sideways and drooping a little.
+func _draw_goat_ears(c: Vector2, r: float) -> void:
+	for side in [-1.0, 1.0]:
+		var center := c + Vector2(side * r * 0.76, -r * 0.16)
+		var tilt: float = side * 0.38
+		var ear := PackedVector2Array()
+		var inner := PackedVector2Array()
+		for p in _ellipse(Vector2.ZERO, r * 0.34, r * 0.13, 28):
+			ear.append(center + p.rotated(tilt))
+			inner.append(center + (p * Vector2(0.7, 0.45) + Vector2(side * r * 0.04, 0)).rotated(tilt))
+		_fill(ear, _animal_look(), 60.0)
+		draw_polyline(_closed(ear), OUTLINE, 4.0, true)
+		draw_colored_polygon(inner, _muzzle_color())
+
+
+## A tuft of beard under the goat's chin, drawn behind the face outline.
+func _draw_goat_beard(c: Vector2, r: float, s: Vector2) -> void:
+	var beard := PackedVector2Array()
+	for p in [Vector2(-0.14, 0.8), Vector2(0.14, 0.8), Vector2(0.07, 1.06), Vector2(0.02, 1.26), Vector2(-0.04, 1.1)]:
+		beard.append(c + p * r * s)
+	var coat := _face_color()
+	draw_colored_polygon(beard, coat.lightened(0.35) if coat.get_luminance() < 0.3 else coat.darkened(0.22))
+	draw_polyline(_closed(beard), OUTLINE, 3.0, true)
+
+
+## The unicorn's muzzle: lighter, with nostrils and a small smile.
+func _draw_unicorn_muzzle(c: Vector2, r: float, s: Vector2) -> void:
 	var muzzle := PackedVector2Array()
 	for p in _ellipse(Vector2.ZERO, r * 0.44, r * 0.3, 40):
 		muzzle.append(c + (Vector2(0, r * 0.5) + p) * s)
-	var skin := build.skin_color()
-	draw_colored_polygon(muzzle, skin.lerp(Color("#f4a6c6"), 0.3))
-	draw_polyline(_closed(muzzle), skin.darkened(0.25), 2.0, true)
+	var light := _muzzle_color()
+	draw_colored_polygon(muzzle, light)
+	draw_polyline(_closed(muzzle), light.darkened(0.3), 2.0, true)
+	var dark := light.darkened(0.55)
 	for side in [-1.0, 1.0]:
 		var n := PackedVector2Array()
 		for p in _ellipse(Vector2.ZERO, r * 0.045, r * 0.03, 12):
-			n.append(c + (Vector2(side * r * 0.2, r * 0.32) + p) * s)
-		draw_colored_polygon(n, skin.darkened(0.45))
+			n.append(c + (Vector2(side * r * 0.2, r * 0.36) + p) * s)
+		draw_colored_polygon(n, dark)
+	draw_arc(c + Vector2(0, r * 0.47) * s, r * 0.16 * s.x, PI * 0.22, PI * 0.78, 16, dark, 4.0, true)
+
+
+## The goat's muzzle: a soft snout with slanted nostrils and a little "w" mouth.
+func _draw_goat_muzzle(c: Vector2, r: float, s: Vector2) -> void:
+	var muzzle := PackedVector2Array()
+	for p in _ellipse(Vector2.ZERO, r * 0.34, r * 0.28, 40):
+		muzzle.append(c + (Vector2(0, r * 0.54) + p) * s)
+	var light := _muzzle_color()
+	draw_colored_polygon(muzzle, light)
+	draw_polyline(_closed(muzzle), light.darkened(0.3), 2.0, true)
+	var dark := light.darkened(0.55)
+	for side in [-1.0, 1.0]:
+		draw_line(c + Vector2(side * r * 0.08, r * 0.42) * s, c + Vector2(side * r * 0.15, r * 0.48) * s, dark, 4.0, true)
+		draw_arc(c + Vector2(side * r * 0.07, r * 0.6) * s, r * 0.07 * s.x, PI * 0.1, PI * 0.9, 10, dark, 3.5, true)
+	draw_line(c + Vector2(0, r * 0.5) * s, c + Vector2(0, r * 0.62) * s, dark, 3.5, true)
 
 
 ## Each eye style looks at the cursor its own way (gaze is smoothed and capped
@@ -1001,20 +1080,20 @@ func _draw_eyes(c: Vector2, r: float, s: Vector2) -> void:
 		var e := c + Vector2(side * r * 0.32, -r * 0.12) * s
 		match build.eyes:
 			0:  # Dots
-				draw_circle(e + _gaze * r * 0.045 * s, r * 0.075 * s.y, OUTLINE)
+				draw_circle(e + _gaze * r * 0.1 * s, r * 0.075 * s.y, _ink())
 			1:  # Googly: pupils look at the cursor and lag behind the bobble
-				draw_circle(e, r * 0.17 * s.y, Color.WHITE)
-				draw_arc(e, r * 0.17 * s.y, 0, TAU, 32, OUTLINE, 3.0, true)
+				draw_circle(e, r * 0.19 * s.y, Color.WHITE)
+				draw_arc(e, r * 0.19 * s.y, 0, TAU, 32, OUTLINE, 3.0, true)
 				var lag := Vector2(-bobble.angle * 28.0, 6.0 - bobble.offset_velocity.y * 0.01) * 0.4
-				var pupil := (_gaze * r * 0.085 + lag).limit_length(r * 0.09)
-				draw_circle(e + pupil * s, r * 0.075 * s.y, OUTLINE)
+				var pupil := (_gaze * r * 0.12 + lag).limit_length(r * 0.115)
+				draw_circle(e + pupil * s, r * 0.07 * s.y, OUTLINE)
 			2:  # Happy (closed, curved)
-				draw_arc(e + Vector2(0, r * 0.05) * s, r * 0.1 * s.y, PI, TAU, 16, OUTLINE, 5.0, true)
+				draw_arc(e + Vector2(0, r * 0.05) * s, r * 0.1 * s.y, PI, TAU, 16, _ink(), 5.0, true)
 			3:  # Angry
-				draw_circle(e + (Vector2(0, r * 0.03) + _gaze * r * 0.035) * s, r * 0.07 * s.y, OUTLINE)
+				draw_circle(e + (Vector2(0, r * 0.03) + _gaze * r * 0.08) * s, r * 0.07 * s.y, _ink())
 				var inner := Vector2(-side * r * 0.04, -r * 0.08) * s
 				var outer := Vector2(side * r * 0.16, -r * 0.17) * s
-				draw_line(e + inner, e + outer, OUTLINE, 6.0, true)
+				draw_line(e + inner, e + outer, _ink(), 6.0, true)
 
 
 func _draw_mouth(c: Vector2, r: float, s: Vector2) -> void:
@@ -1224,8 +1303,14 @@ func _face_polygon(shape: int, c: Vector2, r: float) -> PackedVector2Array:
 				p = Vector2(signf(cos(t)) * pow(absf(cos(t)), 0.5), signf(sin(t)) * pow(absf(sin(t)), 0.5)) * r * 0.84
 			3:  # Egg: wider at the jaw
 				p = Vector2(cos(t) * r * 0.78 * (1.0 + 0.16 * sin(t)), sin(t) * r * 0.98)
-			UNICORN_FACE:  # Unicorn: long, a little wider at the muzzle (ears and muzzle drawn separately)
-				p = Vector2(cos(t) * r * 0.72 * (1.0 + 0.1 * sin(t)), sin(t) * r * 0.98)
+			_:
+				match str(Catalog.animal_face(shape)[0]) if not Catalog.animal_face(shape).is_empty() else "":
+					"unicorn":  # long, a little wider at the muzzle (ears and muzzle drawn separately)
+						p = Vector2(cos(t) * r * 0.72 * (1.0 + 0.1 * sin(t)), sin(t) * r * 0.98)
+					"goat":  # long, narrowing to the chin
+						p = Vector2(cos(t) * r * 0.72 * (1.0 - 0.14 * sin(t)), sin(t) * r * 0.98)
+					_:
+						p = Vector2(cos(t), sin(t)) * r * 0.92
 		pts.append(c + p)
 	return pts
 

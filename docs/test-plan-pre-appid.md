@@ -149,6 +149,24 @@ Run with `--unlock-all` to see everything.
 - [ ] "Save blank template…" saves plain outlines only
 - [ ] Painting on either template and uploading it lines up with the body, arms and legs
 
+**Animal faces** (added 2026-10-24)
+
+- [ ] Face shape lists four unicorn faces (Pearl, Lavender, Pink, Midnight) and four goat faces (Cream, Brown, Black, Spotted), each its own item
+- [ ] Each one matches its body style's colors and pattern, ears included
+- [ ] Animal faces have their own muzzle and mouth; the Mouth row reads "The face's own"
+- [ ] The goat face has floppy ears and a little beard; goat horns sit right on it
+- [ ] On the dark coats (Midnight unicorn, Black goat) dot, happy and angry eyes turn light so they stay visible
+- [ ] Unicorn faces drop only from the super-rare roll; goat faces from the regular pool
+- [ ] A unicorn face unlocked before this change is still owned (it's the Pearl unicorn)
+- [ ] The Steam face pops into an animal face with its ears still on
+
+**Eyes and confetti** (added 2026-10-24)
+
+- [ ] Dots, googly and angry eyes visibly follow the cursor, even when it's only a little way from the head
+- [ ] Happy eyes (and the Steam face) tilt the head a bit more toward the cursor
+- [ ] Confetti is paper: strips, dots, stars, hearts and curly spirals that flip over (lighter backs) and flutter down slowly
+- [ ] Confetti stays visible in front of a big fireworks barrage (`--fake-friends=19`)
+
 ## 4. Rigs
 
 Status: **Built** (2026-10-23): Balloon and Marionette.

@@ -25,7 +25,9 @@ has its own Steam App ID.
   - *Body*: Suit, Hoodie, T-shirt, Robe, Goat or Unicorn and its Style, or
     your own uploaded texture. People have arms; the goat and unicorn stand
     on four legs.
-  - The super-rare unicorn set (face, Rainbow mane, body, horn) comes from a
+  - Animal faces: four unicorn and four goat faces, one matching each body
+    style, with their own muzzle and mouth.
+  - The super-rare unicorn set (faces, Rainbow mane, body, horn) comes from a
     separate 1-in-500 roll. Unicorn horns #2-#4 are multiplayer-only.
   - *Rig*: Bobble (the spring neck), Balloon or Marionette. The rigs join
     the super-rare roll after 500 (Balloon) and 1,000 (Marionette)
