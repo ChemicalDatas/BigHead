@@ -254,13 +254,17 @@ X11, Wayland (KDE/Kinoite) and Windows, and couldn't be checked here.
 
 ## Parallel track: Steam-ready prep
 
-Status: **Not started**. These are documents and assets rather than game
-features; check them by reading.
+Status: **Built** (2026-10-24). Mostly documents and assets in `steam/`;
+the step-by-step for the App ID day is `docs/steam-setup.md`.
 
-- [ ] Achievements sheet lists every achievement with API name, display name, description and two icons, at the size Valve requires
+- [ ] Release build (`build/linux` or the Windows zip): `--unlock-all`, `--fake-friends`, `--drop-rate` etc. do nothing; `--buddy` still works
+- [ ] Saves are in `~/.local/share/BigHead` (Windows: `%APPDATA%\BigHead`); your old saves came along on first launch
+- [ ] Typing `confetti`, `party` or `dizzy` in the playground works (and `bighead`, `fastfaces`, `dropall` in debug runs); a "Cheat: ..." toast shows; none count toward achievements
+
+- [ ] Achievements sheet (`steam/achievements.csv`) lists every achievement with API name, display name, description and two icons (256 × 256 PNG)
 - [ ] Stat definitions match the stats the game reports (`clicks`, `fireworks`)
-- [ ] Rich Presence file contains "Being a Big Head"
-- [ ] Steam Cloud list covers `head_build.json`, `stats.json`, the inventory file and `uploads/`
+- [ ] Rich Presence file contains "Being a Big Head" (plus Customize and desktop buddy states)
+- [ ] Steam Cloud setup in `docs/steam-setup.md` covers `head_build.json`, `stats.json`, `inventory.json` and `uploads/`
 - [ ] Store description draft reads well and never spoils the pop before the reveal
 - [ ] Screenshots: at least 5, 1920 × 1080, gameplay only, 4 or more suitable for all ages
 - [ ] Windows build runs under Proton: builder, reveal, fireworks, drops

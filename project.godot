@@ -7,6 +7,8 @@ config_version=5
 
 config/name="Big Head"
 config/description="Become a Big Head."
+config/use_custom_user_dir=true
+config/custom_user_dir_name="BigHead"
 run/main_scene="res://scenes/splash.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 

@@ -41,6 +41,11 @@ func request_friend_avatar(_steam_id: int) -> void:
 	pass
 
 
+## Sets a Rich Presence key (what friends see in their Steam friends list).
+func set_rich_presence(_key: String, _value: String) -> void:
+	pass
+
+
 ## Friends as profiles. Empty until the friends shelf in iteration 3.
 func get_friends() -> Array[PlayerProfile]:
 	var friends: Array[PlayerProfile] = []

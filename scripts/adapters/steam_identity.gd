@@ -120,6 +120,11 @@ func _process(_delta: float) -> void:
 		_steam.call("run_callbacks")
 
 
+func set_rich_presence(key: String, value: String) -> void:
+	if _available:
+		_steam.call("setRichPresence", key, value)
+
+
 func request_friend_avatar(steam_id: int) -> void:
 	if _available:
 		_steam.call("getPlayerAvatar", AVATAR_MEDIUM, steam_id)

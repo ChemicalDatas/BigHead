@@ -118,8 +118,12 @@ var _last_mouse := Vector2.ZERO
 var _mouse_velocity := Vector2.ZERO
 
 
+## Extra head size from the "bighead" cheat code (never saved).
+var size_boost := 1.0
+
+
 func radius() -> float:
-	return base_radius * build.head_size
+	return base_radius * build.head_size * size_boost
 
 
 ## Height of the whole figure above the pivot (head plus the tallest hat) and below it (the base).

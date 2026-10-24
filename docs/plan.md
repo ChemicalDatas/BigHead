@@ -174,12 +174,18 @@ Everything here builds and tests on app 480 while Steam partner verification run
 
 ### Parallel track: ready for 2B
 
-- [ ] Achievements sheet: API name, display name, description and icons for every achievement (check Valve's icon size first)
-- [ ] Stat definitions, a draft Rich Presence file, and the Steam Cloud file list
-- [ ] Store description draft and suggested tags
-- [ ] Gameplay screenshots at 1920 × 1080, after steps 3 and 4
-- [ ] Capsule art: an artist brief, or placeholders
-- [ ] Windows build tested under Proton
+Everything for the App ID day is in `steam/`, with the step-by-step in `docs/steam-setup.md`.
+
+- [x] Achievements sheet: `steam/achievements.csv` and 256 × 256 PNG icons (achieved and unachieved) drawn from the game's own art (`tools/achievement_icons.tscn`)
+- [x] Stat definitions, the Rich Presence file (`steam/rich_presence/english.vdf`, set by the game) and Steam Cloud setup; saves moved to their own `BigHead` folder for Cloud (old saves carried over)
+- [x] Store description draft and suggested tags (`steam/store-page.md`)
+- [x] Gameplay screenshots at 1920 × 1080 (`steam/screenshots/`, `--store-screenshots`)
+- [x] Capsule art: placeholders at every size (`steam/capsules/`, `tools/capsules.tscn`) and an artist brief
+- [x] Release builds for Linux and Windows export (templates installed); release builds ignore test flags except `--buddy`
+- [x] Typed cheat codes, each switchable for release (`scripts/core/cheat_codes.gd`)
+- [x] SteamPipe build scripts with placeholders (`steam/steampipe/`)
+- [ ] Windows build tested under Proton (on your machine)
+- [ ] GodotSteam bundled into the project for release builds (on your machine)
 
 ### Open
 
@@ -283,13 +289,13 @@ Ruled out. It would move the inventory to Steam Inventory Service, conflict with
 
 ## Before shipping: test flags and cheat codes
 
-The command-line test flags are for development. **Remove them (or compile them out of release builds) before the game ships**, so players can't use them to unlock everything or fake progress:
+The command-line test flags are for development. **Done (2026-10-24):** release builds ignore all of them except `--buddy` (`Game.RELEASE_FLAGS`), so players can't use them to unlock everything or fake progress:
 
 `--no-steam`, `--reset`, `--reset-achievement`, `--fake-friends=N`, `--fast-faces`, `--unlock-all`, `--reset-inventory`, `--drop-rate=N`, `--fireworks-launched=N`, `--fast-timed-drops`, and any added later.
 
 `--buddy` is not a test flag: it stays, as the second Steam launch option.
 
-**In-game cheat codes:** some of these come back as codes typed while the game runs (no console, just typing the word in the playground). Build them as a list, then choose before shipping which stay in for players. Codes never unlock achievements or items, so the collection and Steam stats stay honest. Candidates:
+**In-game cheat codes (built 2026-10-24):** typed while the game runs (no console, just typing the word in the playground). Each has a `release` switch in `scripts/core/cheat_codes.gd`: choose before shipping which stay in for players. Codes never unlock achievements or items, so the collection and Steam stats stay honest. "tryon" was dropped: Customize already lets you preview locked items. Built:
 
 | Code idea | Effect | Keep for players? |
 | --- | --- | --- |
@@ -298,7 +304,6 @@ The command-line test flags are for development. **Remove them (or compile them 
 | `dizzy` | Dizzy stars, ignoring the cooldown | likely |
 | `bighead` | Head size past the slider's maximum for the session (no Swelled Head) | maybe |
 | `fastfaces` | Fast face swaps for the session | maybe |
-| `tryon` | Preview every item in Customize for the session; can't save locked ones | maybe |
 | `dropall` | Every right-click drops something | dev only |
 
 ## Achievements

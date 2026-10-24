@@ -1,0 +1,13 @@
+"AppBuild"
+{
+	"AppID" "APP_ID"
+	"Desc" "Big Head build"
+	"BuildOutput" "../../build/steampipe_output/"
+	"ContentRoot" "../../build/"
+	"SetLive" ""
+	"Depots"
+	{
+		"WINDOWS_DEPOT_ID" "depot_windows.vdf"
+		"LINUX_DEPOT_ID" "depot_linux.vdf"
+	}
+}

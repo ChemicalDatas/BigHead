@@ -1,0 +1,11 @@
+api_name,display_name,description,spoiler,icon_achieved,icon_unachieved
+BIG_HEAD,Big Head,Become a bobblehead.,false,BIG_HEAD_ACHIEVED.png,BIG_HEAD_UNACHIEVED.png
+WHIPLASH,Whiplash,Fling your bobblehead hard enough to see stars.,false,WHIPLASH_ACHIEVED.png,WHIPLASH_UNACHIEVED.png
+PERPETUAL_MOTION,Perpetual Motion,Keep your head bobbling for a full minute.,false,PERPETUAL_MOTION_ACHIEVED.png,PERPETUAL_MOTION_UNACHIEVED.png
+BOBBLE_BOOP,Bobble Boop,Boop your bobblehead 100 times.,false,BOBBLE_BOOP_ACHIEVED.png,BOBBLE_BOOP_UNACHIEVED.png
+OOH_AAH,"Ooh, Aah",Launch 50 fireworks.,false,OOH_AAH_ACHIEVED.png,OOH_AAH_UNACHIEVED.png
+ITS_A_PARTY,It's a Party,Launch 5 rockets at once: you and 4 friends who play Big Head.,false,ITS_A_PARTY_ACHIEVED.png,ITS_A_PARTY_UNACHIEVED.png
+GRAND_FINALE,Grand Finale,Launch 20 rockets at once: you and 19 friends who play Big Head.,false,GRAND_FINALE_ACHIEVED.png,GRAND_FINALE_UNACHIEVED.png
+LEVEL_HEADED,Level-Headed,Leave your bobblehead perfectly still for 5 minutes.,false,LEVEL_HEADED_ACHIEVED.png,LEVEL_HEADED_UNACHIEVED.png
+SWELLED_HEAD,Swelled Head,Make your head as big as it goes.,false,SWELLED_HEAD_ACHIEVED.png,SWELLED_HEAD_UNACHIEVED.png
+POP_GOES_THE_HEAD,Pop Goes the Head,Pop your balloon head.,true,POP_GOES_THE_HEAD_ACHIEVED.png,POP_GOES_THE_HEAD_UNACHIEVED.png

@@ -45,6 +45,7 @@ var _buddy := false
 var _buddy_controls: HBoxContainer
 var _moving_window := false
 var _next_timed_drop := 0.0
+var _cheats := CheatCodes.new()
 
 
 func _ready() -> void:
@@ -392,6 +393,31 @@ func _slam_banner() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		launch_fireworks(get_global_mouse_position())
+	elif event is InputEventKey and event.pressed and not event.echo and _playground and event.unicode > 0:
+		var code := _cheats.type_char(char(event.unicode))
+		if code != "":
+			run_cheat(code)
+
+
+## Typed cheat codes (see CheatCodes). None of them count toward achievements,
+## stats or drops.
+func run_cheat(code: String) -> void:
+	print("[cheat] %s" % code)
+	match code:
+		"confetti":
+			_confetti.burst()
+		"party":
+			_fireworks.launch(_head.to_global(_head.head_center()) + Vector2(0, -80), 20)
+		"dizzy":
+			_head.show_dizzy_stars(STARS_SECONDS)
+		"bighead":
+			_head.size_boost = 1.0 if _head.size_boost > 1.0 else 1.6
+			_layout()
+		"fastfaces":
+			Game.face_time_scale = 0.1
+		"dropall":
+			Game.drop_rate = 1.0
+	_show_toast("Cheat: %s!" % code)
 
 
 ## Right-click: one rocket of yours plus one per friend with Big Head.

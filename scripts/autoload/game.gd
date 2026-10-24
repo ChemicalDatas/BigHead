@@ -13,6 +13,7 @@ extends Node
 ##   --drop-rate=N           chance of a drop per right-click, 0 to 1 (default 0.05)
 ##   --fireworks-launched=N  set the lifetime fireworks count (tests the rig milestones)
 ##   --fast-timed-drops      desktop buddy timed drops every 5-10 s instead of 60-90 min
+##   --store-screenshots     stage and save the Steam store screenshots (tools/store_screenshots.gd)
 ##
 ## Not a test flag (it stays in the shipped game, as a second Steam launch option):
 ##   --buddy                 start straight in desktop buddy mode (once a head is built)
@@ -96,8 +97,45 @@ var _unlocked_this_session := {}
 var _fake_friends := -1
 
 
+## Saves live in their own folder ("BigHead": ~/.local/share/BigHead on
+## Linux, %APPDATA%\BigHead on Windows) so Steam Cloud can find them. Builds
+## before 2026-10-24 saved under Godot's generic folder; bring those along once.
+func _init() -> void:
+	var old_dir := OS.get_data_dir().path_join("godot/app_userdata/Big Head")
+	var new_dir := ProjectSettings.globalize_path("user://")
+	if old_dir == new_dir.trim_suffix("/") or not DirAccess.dir_exists_absolute(old_dir):
+		return
+	if FileAccess.file_exists("user://head_build.json") or FileAccess.file_exists("user://inventory.json"):
+		return
+	_copy_dir(old_dir, new_dir)
+	print("[game] Moved saves from %s to %s." % [old_dir, new_dir])
+
+
+static func _copy_dir(from: String, to: String) -> void:
+	DirAccess.make_dir_recursive_absolute(to)
+	var dir := DirAccess.open(from)
+	if dir == null:
+		return
+	for file in dir.get_files():
+		DirAccess.copy_absolute(from.path_join(file), to.path_join(file))
+	for sub in dir.get_directories():
+		_copy_dir(from.path_join(sub), to.path_join(sub))
+
+
+## Command-line options that still work in release builds. Every other
+## option is for development only and is ignored by a release export, so
+## players can't use them to unlock items or fake progress.
+const RELEASE_FLAGS: Array[String] = ["--buddy"]
+
+
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
+	if not OS.is_debug_build():
+		var kept := PackedStringArray()
+		for arg in args:
+			if arg.get_slice("=", 0) in RELEASE_FLAGS:
+				kept.append(arg)
+		args = kept
 	_fake_friends = _parse_fake_friends(args)
 	_drop_rng.randomize()
 	_parse_drop_rate(args)
@@ -164,6 +202,8 @@ func _ready() -> void:
 		var fixed := profile.build.sanitize(inventory)
 		if not fixed.is_empty():
 			print("[game] Saved head used locked items (%s); switched to owned ones." % ", ".join(fixed))
+	if "--store-screenshots" in args:
+		add_child((load("res://tools/store_screenshots.gd") as GDScript).new())
 	if "--buddy" in args:
 		if profile.has_build():
 			enter_buddy.call_deferred()
@@ -359,7 +399,18 @@ func report(event: String, data: Dictionary = {}) -> void:
 
 
 func go_to(scene_path: String) -> void:
+	match scene_path:
+		BUILDER_SCENE: set_presence("Customizing")
+		REVEAL_SCENE: set_presence("Buddy" if buddy_mode else "Playing")
 	get_tree().change_scene_to_file(scene_path)
+
+
+## Rich Presence: what Steam friends see under your name. The text for each
+## state is in steam/rich_presence/english.vdf ("#Status_Playing" and so on);
+## friends only see it once Big Head has its own App ID.
+func set_presence(state: String) -> void:
+	if steam_available:
+		identity.set_rich_presence("steam_display", "#Status_%s" % state)
 
 
 const FAKE_NAMES: Array[String] = [

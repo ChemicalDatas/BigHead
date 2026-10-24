@@ -120,6 +120,11 @@ stats.
 Put these after `--` on the command line, or in Project → Project Settings →
 Editor → Run → Main Run Args.
 
+They only work in the editor and debug builds: a release export ignores all
+of them except `--buddy`. In the playground you can also type cheat codes:
+`confetti`, `party` and `dizzy` (all builds), and `bighead`, `fastfaces` and
+`dropall` (debug only). They never count toward achievements.
+
 | Flag | Effect |
 | --- | --- |
 | `--reset` | Forget the saved head, style and uploads (first-launch flow) |
@@ -131,6 +136,7 @@ Editor → Run → Main Run Args.
 | `--reset-inventory` | Forget unlocked items; back to the starting set |
 | `--drop-rate=N` | Drop chance per right-click, 0 to 1 (`--drop-rate=1` drops every click) |
 | `--buddy` | Start as the desktop buddy (stays in the shipped game as a launch option) |
+| `--store-screenshots` | Stage and save the Steam store screenshots |
 | `--fast-timed-drops` | Desktop buddy timed drops every 5 to 10 seconds |
 | `--fireworks-launched=N` | Set your lifetime fireworks count (the Balloon rig can drop from 500, the Marionette from 1,000) |
 
@@ -170,7 +176,11 @@ assets/
   fonts/      Bangers, Luckiest Guy, Lobster, Pacifico, Press Start 2P (+ licenses)
   body_template.png, body_template_blank.png
 tools/        dump_body_shapes.gd + make_body_templates.py: regenerate both
-              templates from BodyShapes after changing a body outline
+              templates from BodyShapes after changing a body outline;
+              achievement_icons.tscn + finish_icons.py, capsules.tscn and
+              store_screenshots.gd: the Steam art (see docs/steam-setup.md)
+steam/        everything for Steamworks: achievement icons and CSV, Rich
+              Presence file, screenshots, capsules, store text, SteamPipe
 ```
 
 ## Iteration 2B checklist (after the App ID)
