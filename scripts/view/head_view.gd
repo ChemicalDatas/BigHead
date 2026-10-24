@@ -758,7 +758,7 @@ func _draw_dizzy_stars(c: Vector2, r: float) -> void:
 		for k in 10:
 			var ang := -PI / 2.0 + TAU * float(k) / 10.0 + _stars_spin * 0.8
 			pts.append(p + Vector2.from_angle(ang) * (size if k % 2 == 0 else size * 0.45))
-		draw_colored_polygon(pts, build.hair_color)
+		draw_colored_polygon(pts, color)
 		draw_polyline(_closed(pts), outline, 3.0, true)
 
 
