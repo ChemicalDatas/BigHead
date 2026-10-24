@@ -19,7 +19,7 @@ has its own Steam App ID.
   corner of your desktop, always on top. Clicks pass through to your other
   apps except on the figure. Drag the stand to move it; "Full game" brings the
   window back. While it runs, a drop falls every 60 to 90 minutes (no
-  super-rares; up to 12 boxes wait beside it).
+  super-rares; unopened boxes pile up beside it).
 - **Friends' shelves.** Friends who have Big Head stand on shelves on the
   wall as little bobbleheads with their Steam avatar as the face. Click one
   to make it wobble; hover for the name. Up to 72 (two wall shelves, then a

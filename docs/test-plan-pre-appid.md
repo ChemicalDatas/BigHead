@@ -96,6 +96,8 @@ without the flag to check normal rarity.
 - [ ] Clicking a box doesn't also nudge the head
 - [ ] An item you already own bursts into confetti instead of a gift box
 - [ ] An unclicked gift box stays on screen until you quit, and is gone on the next launch
+- [ ] Many boxes pile up: a front row, rows behind it (a little higher, smaller and darker), then stacked on top; no limit
+- [ ] Clicking a pile opens the box in front, not one behind it; only the front one glows on hover
 - [ ] Unclicked boxes are still there after a trip to Customize and back
 - [ ] Newly unlocked items appear as unlocked in Customize straight away
 - [ ] As the collection fills up, new items come noticeably less often (more confetti, fewer boxes)
@@ -247,7 +249,7 @@ X11, Wayland (KDE/Kinoite) and Windows, and couldn't be checked here.
 - [ ] The buddy can be closed and the normal game reopened
 - [ ] While the buddy runs, a drop happens at a random time every 60 to 90 minutes (a gift box for a new item, confetti for one you own)
 - [ ] Timed drops never give super-rares
-- [ ] With 12 gift boxes waiting, timed drops stop until some are collected
+- [ ] Timed drops keep coming however many boxes are waiting
 - [ ] A timed-drop gift box on the desktop can be clicked even though the rest of the window lets clicks through
 
 ## Parallel track: Steam-ready prep

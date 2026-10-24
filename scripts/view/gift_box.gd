@@ -48,7 +48,7 @@ func _process(delta: float) -> void:
 			else:
 				_landed = true
 				rotation = 0.0
-	_hover = _landed and not _opening and _contains(get_local_mouse_position())
+	_hover = _clickable_here() and _is_front_most()
 	queue_redraw()
 
 
@@ -56,9 +56,27 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _opening or not _landed:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		if _contains(get_local_mouse_position()):
+		if _clickable_here() and _is_front_most():
 			get_viewport().set_input_as_handled()
 			open()
+
+
+func _clickable_here() -> bool:
+	return _landed and not _opening and _contains(get_local_mouse_position())
+
+
+## In a pile, boxes overlap: only the one drawn in front (highest z_index,
+## then the one added last) answers the cursor.
+func _is_front_most() -> bool:
+	for other in get_parent().get_children():
+		if other == self or not other is GiftBox:
+			continue
+		var box := other as GiftBox
+		if not box._clickable_here():
+			continue
+		if box.z_index > z_index or (box.z_index == z_index and box.get_index() > get_index()):
+			return false
+	return true
 
 
 ## Pop the lid, then report the item and disappear.
@@ -66,9 +84,10 @@ func open() -> void:
 	if _opening:
 		return
 	_opening = true
+	var size := scale
 	var tween := create_tween()
-	tween.tween_property(self, "scale", Vector2(1.3, 0.75), 0.08)
-	tween.tween_property(self, "scale", Vector2(1.15, 1.15), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, "scale", size * Vector2(1.3, 0.75), 0.08)
+	tween.tween_property(self, "scale", size * 1.15, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_callback(func() -> void: opened.emit(item_id))
 	tween.tween_property(self, "modulate:a", 0.0, 0.25)
 	tween.tween_callback(queue_free)

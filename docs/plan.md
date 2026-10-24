@@ -170,7 +170,7 @@ Everything here builds and tests on app 480 while Steam partner verification run
 - [x] Transparent click-through window with the bobblehead; eyes follow the cursor where the platform allows
 - [x] Two ways in: a "Desktop buddy" button in the playground, and the `--buddy` launch option (a second Steam launch entry); "Full game" and "Close" buttons under the stand
 - [x] Drag the stand to move the buddy around the desktop
-- [x] Timed drops: while the desktop buddy runs, a drop happens at a random time every 60 to 90 minutes, from the regular pool (no super-rares; owned items burst into confetti); timed drops pause while 12 gift boxes are waiting to be clicked. Boxes stack in two small pyramids beside the stand
+- [x] Timed drops: while the desktop buddy runs, a drop happens at a random time every 60 to 90 minutes, from the regular pool (no super-rares; owned items burst into confetti). No limit on waiting boxes: they pile up beside the stand
 
 ### Parallel track: ready for 2B
 
@@ -372,7 +372,8 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Builder button | "Play" |
 | Before the App ID | Catalog and inventory, drops, content, rigs, friends' shelves, desktop buddy, in that order; Steam-ready prep in parallel |
 | Customize Cancel | Cancel button; Esc cancels instead of quitting; built in roadmap step 1 |
-| Desktop buddy drops | Random time every 60 to 90 minutes while the buddy runs; regular pool, no super-rares; pauses at 12 waiting gift boxes |
+| Desktop buddy drops | Random time every 60 to 90 minutes while the buddy runs; regular pool, no super-rares; no limit on waiting gift boxes |
+| Gift box piles | Unlimited (2026-10-24): front row on the floor, rows behind (higher, smaller, darker, brick-offset), then stacked up; the front-most box under the cursor opens |
 | Starting accessories | None; the first hat comes from a drop |
 | Starting set | Round and Oval faces, Buzz and Spiky hair, Dots and Googly eyes, Smile and Grin mouths, Suit and T-shirt bodies |
 | Locked items in Customize | Visible and previewable, marked "(locked)"; Play/Save disabled until every choice is owned |

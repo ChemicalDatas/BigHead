@@ -252,42 +252,16 @@ func _update_passthrough() -> void:
 
 ## Every 60-90 minutes (random), a drop falls from the top of the window:
 ## a gift box for a new item, confetti for one already owned. Never a
-## super-rare. Paused while 12 boxes are waiting.
+## super-rare. There's no limit: unopened boxes just keep piling up.
 func _tick_timed_drops(delta: float) -> void:
 	_next_timed_drop -= delta
 	if _next_timed_drop > 0.0:
 		return
 	_next_timed_drop = Game.next_timed_drop_wait()
-	if Game.waiting_gifts().size() >= Game.TIMED_DROP_BOX_CAP:
-		print("[drops] Timed drop skipped: %d gift boxes are waiting." % Game.TIMED_DROP_BOX_CAP)
-		return
 	var result := Game.roll_timed_drop()
 	print("[drops] Timed drop: %s" % ("confetti (already owned)" if result.kind == DropRules.Kind.DUPLICATE else Catalog.display_name(result.item_id)))
-	var slot := _buddy_slot(_free_buddy_slot())
-	_show_drop(result.kind, result.item_id, false, Vector2(slot.x, -40.0) if result.kind == DropRules.Kind.NEW_ITEM else _confetti.position)
-
-
-## Gift box spots in the buddy window: two little pyramids of six, one each
-## side of the stand (bottom row of three, then two, then one).
-func _buddy_slot(i: int) -> Vector2:
-	const ROWS := [[0, 0], [1, 0], [2, 0], [0.5, 1], [1.5, 1], [1, 2]]
-	var side := -1.0 if i % 2 == 0 else 1.0
-	var spot: Array = ROWS[clampi(i / 2, 0, ROWS.size() - 1)]
-	var view := get_viewport_rect().size
-	var floor_y := view.y - BUDDY_CONTROLS_HEIGHT - 4.0
-	var x := _head.position.x + side * (_stand_rect().size.x * 0.5 + 40.0 + float(spot[0]) * 62.0)
-	return Vector2(x, floor_y - float(spot[1]) * 47.0)
-
-
-func _free_buddy_slot() -> int:
-	var taken := {}
-	for child in _drops.get_children():
-		if child is GiftBox:
-			taken[(child as GiftBox).get_meta("buddy_slot", -1)] = true
-	for i in Game.TIMED_DROP_BOX_CAP:
-		if not taken.has(i):
-			return i
-	return Game.TIMED_DROP_BOX_CAP - 1
+	var spot: Vector2 = _pile_place(_free_pile_slot())["position"]
+	_show_drop(result.kind, result.item_id, false, Vector2(spot.x, -40.0) if result.kind == DropRules.Kind.NEW_ITEM else _confetti.position)
 
 
 func _update_hint() -> void:
@@ -437,8 +411,6 @@ func launch_fireworks(at: Vector2) -> void:
 ## when the first rocket bursts: a gift box for a new item, confetti for an
 ## item the player already owns.
 func _roll_drop(at: Vector2) -> void:
-	if _buddy and Game.waiting_gifts().size() >= Game.TIMED_DROP_BOX_CAP:
-		return  # no room for another box beside the buddy
 	var result := Game.roll_drop()
 	if result.kind == DropRules.Kind.NOTHING:
 		return
@@ -457,58 +429,113 @@ func _spawn_gift(item_id: String, super_rare: bool, at: Vector2, landed: bool) -
 	var box := GiftBox.new()
 	box.item_id = item_id
 	box.super_rare = super_rare
-	if _buddy:
-		var slot_index := _free_buddy_slot()
-		var slot := _buddy_slot(slot_index)
-		box.set_meta("buddy_slot", slot_index)
-		box.floor_y = slot.y
-		box.target_x = slot.x
-		box.position = slot if landed else Vector2(slot.x, minf(at.y, slot.y - 60.0))
-		box.opened.connect(_on_gift_opened.bind(box))
-		_drops.add_child(box)
-		return
-	var spot := _free_floor_spot(at.x)
+	var slot := _free_pile_slot()
+	var place := _pile_place(slot)
+	var spot: Vector2 = place["position"]
+	box.set_meta("pile_slot", slot)
 	box.floor_y = spot.y
 	box.target_x = spot.x
-	box.position = Vector2(box.target_x if landed else clampf(at.x, 70.0, view.x - 70.0), box.floor_y if landed else at.y)
+	box.z_index = place["z"]
+	box.scale = Vector2.ONE * float(place["scale"])
+	var shade: float = place["shade"]
+	box.modulate = Color(shade, shade, shade)
+	var start_x := clampf(at.x, 70.0, view.x - 70.0)
+	box.position = spot if landed else Vector2(start_x, minf(at.y, spot.y - 60.0))
 	box.opened.connect(_on_gift_opened.bind(box))
 	_drops.add_child(box)
 
 
-## A floor spot near `x`, clear of the bobblehead's stand and the other
-## boxes. When the floor is full, boxes stack: a second row sits on top of
-## the first, and so on. Returns (x, bottom edge y).
-func _free_floor_spot(x: float) -> Vector2:
+# --------------------------------------------------------------------------
+# Gift box piles
+# --------------------------------------------------------------------------
+
+## Unopened boxes pile up with no limit. Each spot on the floor is a column;
+## boxes fill every column's front row first, then rows behind (a little
+## higher, smaller and darker), and stack on top of each other in every row.
+## Order: the front row on the floor, then the rows behind it, then a box on
+## top of each, and so on (lowest first, back rows before going up).
+const PILE_DEPTHS := 3
+const PILE_BOX_HEIGHT := 47.0
+
+
+## The floor columns: the full game uses the floor either side of the stand
+## (nearest the stand first); the buddy has three columns on each side.
+func _pile_columns() -> Array[float]:
+	var columns: Array[float] = []
+	if _buddy:
+		for k in 3:
+			for side in [-1.0, 1.0]:
+				columns.append(_head.position.x + side * (_stand_rect().size.x * 0.5 + 40.0 + k * 62.0))
+		return columns
 	const SPACING := 72.0
-	const BOX_HEIGHT := 47.0
 	var view := get_viewport_rect().size
-	var floor_y := view.y - 64.0
 	var stand_half := 150.0 * _head.scale.x
-	var lo := 80.0
-	var hi := view.x - 80.0
-	# Floor spots, nearest to `x` first, skipping the stand.
-	var spots: Array[float] = []
-	var spot := lo
-	while spot <= hi:
-		if absf(spot - _head.position.x) >= stand_half + SPACING * 0.5:
-			spots.append(spot)
-		spot += SPACING
-	spots.sort_custom(func(a: float, b: float) -> bool: return absf(a - x) < absf(b - x))
-	var stacked := {}
+	var x := 80.0
+	while x <= view.x - 80.0:
+		if absf(x - _head.position.x) >= stand_half + SPACING * 0.5:
+			columns.append(x)
+		x += SPACING
+	var center := _head.position.x
+	columns.sort_custom(func(a: float, b: float) -> bool: return absf(a - center) < absf(b - center))
+	return columns
+
+
+func _pile_floor_y() -> float:
+	var view := get_viewport_rect().size
+	return view.y - BUDDY_CONTROLS_HEIGHT - 4.0 if _buddy else view.y - 64.0
+
+
+## Where pile slot `i` sits: its position (bottom-centre), drawing order,
+## size and shade. Slots never run out.
+func _pile_place(i: int) -> Dictionary:
+	var columns := _pile_columns()
+	var count := maxi(columns.size(), 1)
+	var column := i % count
+	var layer := i / count
+	# The layer-th (depth, height) pair, in order of depth + height, then lowest.
+	var depth := 0
+	var height := 0
+	var n := 0
+	var total := 0
+	while true:
+		var found := false
+		for h in range(0, total + 1):
+			var d := total - h
+			if d >= PILE_DEPTHS:
+				continue
+			if n == layer:
+				depth = d
+				height = h
+				found = true
+				break
+			n += 1
+		if found:
+			break
+		total += 1
+	var size := 1.0 - 0.1 * depth
+	var base_x := float(columns[column]) if not columns.is_empty() else _head.position.x
+	# Rows behind sit higher and shift toward the middle, so they peek out
+	# over and beside the row in front.
+	# Brick pattern: every other row behind sits half a box over.
+	var x := base_x + (36.0 if depth % 2 == 1 else 0.0) * signf(_head.position.x - base_x)
+	var y := _pile_floor_y() - 28.0 * depth - PILE_BOX_HEIGHT * size * height
+	return {
+		"position": Vector2(x, y),
+		"z": 100 - depth * 40 + height,
+		"scale": size,
+		"shade": 1.0 - 0.14 * depth,
+	}
+
+
+func _free_pile_slot() -> int:
+	var taken := {}
 	for child in _drops.get_children():
-		if child is GiftBox:
-			var box := child as GiftBox
-			var nearest := -1
-			for i in spots.size():
-				if absf(spots[i] - box.target_x) < SPACING * 0.5:
-					nearest = i
-			if nearest >= 0:
-				stacked[nearest] = int(stacked.get(nearest, 0)) + 1
-	for row in 4:
-		for i in spots.size():
-			if int(stacked.get(i, 0)) == row:
-				return Vector2(spots[i], floor_y - BOX_HEIGHT * row)
-	return Vector2(clampf(x, lo, hi), floor_y)
+		if child is GiftBox and not (child as GiftBox).is_queued_for_deletion():
+			taken[int(child.get_meta("pile_slot", -1))] = true
+	var i := 0
+	while taken.has(i):
+		i += 1
+	return i
 
 
 ## Boxes still waiting from earlier (e.g. before a trip to Customize) are
@@ -518,8 +545,6 @@ func _restore_waiting_gifts() -> void:
 	var gifts := Game.waiting_gifts()
 	var i := 0
 	for item_id in gifts:
-		if _buddy and i >= Game.TIMED_DROP_BOX_CAP:
-			break  # the rest wait for the full game
 		var x := view.x * (0.2 + 0.6 * fmod(0.37 * float(i) + 0.13, 1.0))
 		_spawn_gift(item_id, gifts[item_id], Vector2(x, 0.0), true)
 		i += 1

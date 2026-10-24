@@ -59,8 +59,7 @@ const BUDDY_SIZE := Vector2i(560, 680)
 ## Timed drops while the buddy runs: a random wait in this range (seconds).
 const TIMED_DROP_MIN := 3600.0
 const TIMED_DROP_MAX := 5400.0
-## Timed drops stop while this many gift boxes are waiting to be clicked.
-const TIMED_DROP_BOX_CAP := 12
+
 ## Emitted for every unlock (Steam shows its own popup; this is for logs and tests).
 signal achievement_unlocked(id: String)
 
