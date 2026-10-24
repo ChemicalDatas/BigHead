@@ -167,8 +167,10 @@ Everything here builds and tests on app 480 while Steam partner verification run
 
 **6. Desktop buddy**
 
-- [ ] Transparent click-through window with the bobblehead; eyes follow the cursor where the platform allows
-- [ ] Timed drops: while the desktop buddy runs, a drop happens at a random time every 60 to 90 minutes, from the regular pool (no super-rares; owned items burst into confetti); timed drops pause while 12 gift boxes are waiting to be clicked
+- [x] Transparent click-through window with the bobblehead; eyes follow the cursor where the platform allows
+- [x] Two ways in: a "Desktop buddy" button in the playground, and the `--buddy` launch option (a second Steam launch entry); "Full game" and "Close" buttons under the stand
+- [x] Drag the stand to move the buddy around the desktop
+- [x] Timed drops: while the desktop buddy runs, a drop happens at a random time every 60 to 90 minutes, from the regular pool (no super-rares; owned items burst into confetti); timed drops pause while 12 gift boxes are waiting to be clicked. Boxes stack in two small pyramids beside the stand
 
 ### Parallel track: ready for 2B
 
@@ -194,6 +196,7 @@ Iteration 2B is configuration and store work; the only code change is removing t
 - **Steam Cloud:** sync the saved head and uploaded images across machines.
 - Store page, capsule art, screenshots, AI-content survey (none), and build uploads.
 - Remove the command-line test flags from release builds and settle which cheat codes stay (see "Before shipping").
+- Steam launch options: "Play" (no arguments) and "Desktop buddy" (`--buddy`).
 
 ### Store page assets
 
@@ -282,7 +285,9 @@ Ruled out. It would move the inventory to Steam Inventory Service, conflict with
 
 The command-line test flags are for development. **Remove them (or compile them out of release builds) before the game ships**, so players can't use them to unlock everything or fake progress:
 
-`--no-steam`, `--reset`, `--reset-achievement`, `--fake-friends=N`, `--fast-faces`, `--unlock-all`, `--reset-inventory`, `--drop-rate=N`, `--fireworks-launched=N`, and any added later (e.g. `--fast-timed-drops`).
+`--no-steam`, `--reset`, `--reset-achievement`, `--fake-friends=N`, `--fast-faces`, `--unlock-all`, `--reset-inventory`, `--drop-rate=N`, `--fireworks-launched=N`, `--fast-timed-drops`, and any added later.
+
+`--buddy` is not a test flag: it stays, as the second Steam launch option.
 
 **In-game cheat codes:** some of these come back as codes typed while the game runs (no console, just typing the word in the playground). Build them as a list, then choose before shipping which stay in for players. Codes never unlock achievements or items, so the collection and Steam stats stay honest. Candidates:
 
@@ -382,6 +387,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Friends' shelves | No room: shelves over the current backgrounds. Left wall, right wall, then a 5-shelf bookcase on the right, then the left; 6 per shelf, 72 max, later friends not added |
 | Friends on the shelf | Steam avatar face plus a default body, hair and accessory per friend; their custom builds aren't fetched |
 | Multiplayer room | Players walk their bobbleheads around; the room grows with the number of friends in the game |
+| Desktop buddy | Button in the playground and a `--buddy` launch option; 560 × 680 frameless, see-through, always-on-top window in the bottom-right corner; drag the stand to move it; clicks pass through except the figure, gift boxes and controls |
 | Test flags | Removed from release builds; some return as in-game cheat codes, chosen before shipping |
 | Body proportions | People bodies drawn at 72% width; goat and unicorn keep full width |
 | Variant names | Numbered #1-#4 (e.g. "Wizard hat #3"); #1 is each item's original look |

@@ -14,6 +14,12 @@ has its own Steam App ID.
 - **Collection.** New players own two options each of face shape, hair,
   eyes, mouth and body, and no accessories. Everything else shows in the
   builder as "(locked)" until it's unlocked.
+- **Desktop buddy.** The playground's "Desktop buddy" button (or launching
+  with `--buddy`) shrinks the game to a small see-through bobblehead in the
+  corner of your desktop, always on top. Clicks pass through to your other
+  apps except on the figure. Drag the stand to move it; "Full game" brings the
+  window back. While it runs, a drop falls every 60 to 90 minutes (no
+  super-rares; up to 12 boxes wait beside it).
 - **Friends' shelves.** Friends who have Big Head stand on shelves on the
   wall as little bobbleheads with their Steam avatar as the face. Click one
   to make it wobble; hover for the name. Up to 72 (two wall shelves, then a
@@ -124,6 +130,8 @@ Editor → Run → Main Run Args.
 | `--unlock-all` | Treat every item as owned for this run (nothing is saved) |
 | `--reset-inventory` | Forget unlocked items; back to the starting set |
 | `--drop-rate=N` | Drop chance per right-click, 0 to 1 (`--drop-rate=1` drops every click) |
+| `--buddy` | Start as the desktop buddy (stays in the shipped game as a launch option) |
+| `--fast-timed-drops` | Desktop buddy timed drops every 5 to 10 seconds |
 | `--fireworks-launched=N` | Set your lifetime fireworks count (the Balloon rig can drop from 500, the Marionette from 1,000) |
 
 Example: `godot --path . -- --reset --fake-friends=19`

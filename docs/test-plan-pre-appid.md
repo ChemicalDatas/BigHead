@@ -229,9 +229,16 @@ Status: **Built** (2026-10-24). Use `--fake-friends=N` for made-up friends.
 
 ## 6. Desktop buddy
 
-Status: **Not built yet**
+Status: **Built** (2026-10-24). This is the part most worth testing on your
+own machines: see-through windows and click-through behave differently on
+X11, Wayland (KDE/Kinoite) and Windows, and couldn't be checked here.
+`--fast-timed-drops` makes timed drops come every 5 to 10 seconds.
 
-- [ ] The buddy opens as a small transparent window on the desktop, with no frame
+- [ ] The playground has a "Desktop buddy" button; launching with `--buddy` goes straight to the buddy (or to Customize if no head is built yet)
+- [ ] The buddy opens as a small transparent window on the desktop, with no frame, in the bottom-right corner, above other windows
+- [ ] Dragging the stand moves the buddy around the desktop
+- [ ] "Full game" brings back the normal window as it was (size, position, fullscreen); "Close" quits
+- [ ] The two buttons are faint until the cursor is over the buddy
 - [ ] Clicks pass through to other apps everywhere except the bobblehead
 - [ ] The bobblehead can still be clicked, dragged and fire fireworks
 - [ ] On Windows and X11: eyes follow the cursor anywhere on screen

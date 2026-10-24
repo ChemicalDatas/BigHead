@@ -96,6 +96,10 @@ var _ground_grace := 0.0
 
 ## Eyes (or, for faces whose eyes can't move, the head) follow the cursor.
 var look_at_cursor := true
+## Follow the cursor anywhere on screen, not just over this window (the
+## desktop buddy). Works on Windows and X11; Wayland only reports the cursor
+## while it's over the window.
+var global_cursor := false
 ## Where the eyes look: a direction with length 0..1 (1 = as far as they go), smoothed.
 var _gaze := Vector2.ZERO
 ## Extra head tilt toward the cursor; drawing only, so it never disturbs the physics.
@@ -460,7 +464,7 @@ func _update_gaze(delta: float) -> void:
 	if look_at_cursor:
 		var r := radius()
 		var c := Vector2(0.0, -r * 0.92)
-		var in_head := (_to_body_space(get_local_mouse_position()) - bobble.offset).rotated(-bobble.angle - _look_tilt) - c
+		var in_head := (_to_body_space(_cursor_local()) - bobble.offset).rotated(-bobble.angle - _look_tilt) - c
 		var dist := in_head.length()
 		if dist > 0.001:
 			# Saturates quickly: a cursor one head-radius away already gets ~70% of the range.
@@ -469,6 +473,14 @@ func _update_gaze(delta: float) -> void:
 	_gaze = _gaze.lerp(target, blend)
 	var tilt_target := clampf(_gaze.x, -1.0, 1.0) * MAX_LOOK_TILT if _looks_with_head() else 0.0
 	_look_tilt = lerpf(_look_tilt, tilt_target, blend)
+
+
+## The cursor in this node's space; with global_cursor, even outside the window.
+func _cursor_local() -> Vector2:
+	if global_cursor:
+		var on_screen := Vector2(DisplayServer.mouse_get_position() - get_window().position)
+		return get_global_transform_with_canvas().affine_inverse() * on_screen
+	return get_local_mouse_position()
 
 
 func _unhandled_input(event: InputEvent) -> void:

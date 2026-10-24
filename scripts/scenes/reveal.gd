@@ -17,6 +17,9 @@ const BASE_RADIUS := 125.0
 ## long before another fling can bring them back.
 const STARS_SECONDS := 3.0
 const STARS_COOLDOWN := 30.0
+## Desktop buddy: room for the controls under the stand, and the gap above.
+const BUDDY_CONTROLS_HEIGHT := 46.0
+const BUDDY_TOP := 14.0
 
 var _background: BackgroundView
 var _shelves: Shelves
@@ -35,6 +38,13 @@ var _moving_for := 0.0
 var _still_for := 0.0
 var _reported_bobbling := false
 var _reported_still := false
+## Desktop buddy mode (see Game.enter_buddy): no background, banner, shelves
+## or hint; small controls under the stand; clicks pass through everywhere
+## but the figure, its gift boxes and the controls.
+var _buddy := false
+var _buddy_controls: HBoxContainer
+var _moving_window := false
+var _next_timed_drop := 0.0
 
 
 func _ready() -> void:
@@ -92,6 +102,15 @@ func _ready() -> void:
 	_update_hint()
 	Game.friends_with_big_head_changed.connect(func(_c: int) -> void: _update_hint())
 
+	_buddy = Game.buddy_mode
+	if _buddy:
+		_background.visible = false
+		_hint.visible = false
+		_buttons.visible = false
+		_head.global_cursor = true
+		_build_buddy_controls()
+		_next_timed_drop = Game.next_timed_drop_wait()
+
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 	_restore_waiting_gifts()
@@ -100,6 +119,9 @@ func _ready() -> void:
 
 func _layout() -> void:
 	var view := get_viewport_rect().size
+	if _buddy:
+		_layout_buddy(view)
+		return
 	# Fit the figure between the banner and the bottom edge; a swelled head
 	# shrinks the whole figure instead of running into the banner.
 	var bottom := view.y - 12.0
@@ -130,11 +152,142 @@ func _build_buttons() -> void:
 	edit.pressed.connect(func() -> void: Game.go_to(Game.BUILDER_SCENE))
 	_buttons.add_child(edit)
 
+	var buddy := Button.new()
+	buddy.text = "Desktop buddy"
+	buddy.tooltip_text = "Shrink to a little bobblehead that sits on your desktop"
+	buddy.add_theme_font_size_override("font_size", 20)
+	buddy.pressed.connect(Game.enter_buddy)
+	_buttons.add_child(buddy)
+
 	var quit := Button.new()
 	quit.text = "Quit"
 	quit.add_theme_font_size_override("font_size", 20)
 	quit.pressed.connect(func() -> void: get_tree().quit())
 	_buttons.add_child(quit)
+
+
+# --------------------------------------------------------------------------
+# Desktop buddy
+# --------------------------------------------------------------------------
+
+func _layout_buddy(view: Vector2) -> void:
+	var bottom := view.y - BUDDY_CONTROLS_HEIGHT
+	var needed := _head.extent_above_pivot() + _head.extent_below_pivot()
+	var fit := minf(0.62, (bottom - BUDDY_TOP) / needed)
+	_head.scale = Vector2(fit, fit)
+	_head.position = Vector2(view.x * 0.5, bottom - _head.extent_below_pivot() * fit)
+	_confetti.position = _head.position + Vector2(0, -_head.radius() * 0.92 * fit)
+	_buddy_controls.reset_size()
+	_buddy_controls.position = Vector2((view.x - _buddy_controls.size.x) * 0.5, view.y - BUDDY_CONTROLS_HEIGHT + 6.0)
+
+
+## "Full game" and "Close", faint until the cursor is over the buddy.
+func _build_buddy_controls() -> void:
+	_buddy_controls = HBoxContainer.new()
+	_buddy_controls.add_theme_constant_override("separation", 8)
+	_buddy_controls.modulate.a = 0.35
+	add_child(_buddy_controls)
+	var full := Button.new()
+	full.text = "Full game"
+	full.add_theme_font_size_override("font_size", 15)
+	full.pressed.connect(Game.exit_buddy)
+	_buddy_controls.add_child(full)
+	var close := Button.new()
+	close.text = "Close"
+	close.add_theme_font_size_override("font_size", 15)
+	close.pressed.connect(func() -> void: get_tree().quit())
+	_buddy_controls.add_child(close)
+	get_window().mouse_entered.connect(func() -> void:
+		if is_instance_valid(_buddy_controls):
+			_buddy_controls.create_tween().tween_property(_buddy_controls, "modulate:a", 1.0, 0.15))
+	get_window().mouse_exited.connect(func() -> void:
+		if is_instance_valid(_buddy_controls):
+			_buddy_controls.create_tween().tween_property(_buddy_controls, "modulate:a", 0.35, 0.4))
+
+
+## The stand is the handle for moving the buddy around the desktop.
+func _stand_rect() -> Rect2:
+	var s := _head.scale.x
+	return Rect2(_head.position + Vector2(-125.0, 150.0) * s, Vector2(250.0, 85.0) * s)
+
+
+func _input(event: InputEvent) -> void:
+	if not _buddy:
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed and _stand_rect().has_point(get_global_mouse_position()):
+			_moving_window = true
+			get_viewport().set_input_as_handled()
+		elif not event.pressed and _moving_window:
+			_moving_window = false
+			get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and _moving_window:
+		get_window().position += Vector2i((event as InputEventMouseMotion).relative)
+		get_viewport().set_input_as_handled()
+
+
+## Clicks only land on the buddy where there's something to click: the head
+## (and its tallest hat), body and stand, the rig's bar or string, gift
+## boxes and the controls. Everywhere else they go to the apps underneath.
+## No global input hooks: this only shapes this window's own click area.
+func _update_passthrough() -> void:
+	var pts := PackedVector2Array()
+	var s := _head.scale.x
+	var r := _head.radius() * s
+	var center := _head.to_global(_head.head_center())
+	for i in 24:
+		pts.append(center + Vector2.from_angle(TAU * i / 24.0) * r * 1.08)
+	pts.append(center + Vector2(0, -r * 2.0))  # tall hats and horns
+	for corner in [Vector2(-130, 20), Vector2(130, 20), Vector2(130, 236), Vector2(-130, 236)]:
+		pts.append(_head.to_global(corner))
+	for child in _drops.get_children():
+		if child is GiftBox:
+			var box := child as GiftBox
+			for corner in [Vector2(-34, -54), Vector2(34, -54), Vector2(34, 4), Vector2(-34, 4)]:
+				pts.append(box.global_position + corner)
+	var controls := _buddy_controls.get_global_rect().grow(4.0)
+	pts.append_array([controls.position, Vector2(controls.end.x, controls.position.y), controls.end, Vector2(controls.position.x, controls.end.y)])
+	DisplayServer.window_set_mouse_passthrough(Geometry2D.convex_hull(pts), get_window().get_window_id())
+
+
+## Every 60-90 minutes (random), a drop falls from the top of the window:
+## a gift box for a new item, confetti for one already owned. Never a
+## super-rare. Paused while 12 boxes are waiting.
+func _tick_timed_drops(delta: float) -> void:
+	_next_timed_drop -= delta
+	if _next_timed_drop > 0.0:
+		return
+	_next_timed_drop = Game.next_timed_drop_wait()
+	if Game.waiting_gifts().size() >= Game.TIMED_DROP_BOX_CAP:
+		print("[drops] Timed drop skipped: %d gift boxes are waiting." % Game.TIMED_DROP_BOX_CAP)
+		return
+	var result := Game.roll_timed_drop()
+	print("[drops] Timed drop: %s" % ("confetti (already owned)" if result.kind == DropRules.Kind.DUPLICATE else Catalog.display_name(result.item_id)))
+	var slot := _buddy_slot(_free_buddy_slot())
+	_show_drop(result.kind, result.item_id, false, Vector2(slot.x, -40.0) if result.kind == DropRules.Kind.NEW_ITEM else _confetti.position)
+
+
+## Gift box spots in the buddy window: two little pyramids of six, one each
+## side of the stand (bottom row of three, then two, then one).
+func _buddy_slot(i: int) -> Vector2:
+	const ROWS := [[0, 0], [1, 0], [2, 0], [0.5, 1], [1.5, 1], [1, 2]]
+	var side := -1.0 if i % 2 == 0 else 1.0
+	var spot: Array = ROWS[clampi(i / 2, 0, ROWS.size() - 1)]
+	var view := get_viewport_rect().size
+	var floor_y := view.y - BUDDY_CONTROLS_HEIGHT - 4.0
+	var x := _head.position.x + side * (_stand_rect().size.x * 0.5 + 40.0 + float(spot[0]) * 62.0)
+	return Vector2(x, floor_y - float(spot[1]) * 47.0)
+
+
+func _free_buddy_slot() -> int:
+	var taken := {}
+	for child in _drops.get_children():
+		if child is GiftBox:
+			taken[(child as GiftBox).get_meta("buddy_slot", -1)] = true
+	for i in Game.TIMED_DROP_BOX_CAP:
+		if not taken.has(i):
+			return i
+	return Game.TIMED_DROP_BOX_CAP - 1
 
 
 func _update_hint() -> void:
@@ -191,12 +344,13 @@ func _enter_playground_directly() -> void:
 		_head.steam_texture = profile.steam_avatar
 		_head.face_hidden = false
 		_head.show_steam_face = profile.style.face_mode != SceneStyle.FaceMode.KEEP_MINE or not profile.has_build()
-	_banner.visible = true
+	_banner.visible = not _buddy
 	_banner.reset_size()
 	_layout()
 	_banner.position.y = BANNER_TOP
 	_buttons.modulate.a = 1.0
-	_shelves.appear(true)
+	if not _buddy:
+		_shelves.appear(true)
 	_playground = true
 	if steam_face and profile.has_build() and profile.style.face_mode == SceneStyle.FaceMode.ALTERNATE:
 		_run_face_cycle()
@@ -283,6 +437,8 @@ func launch_fireworks(at: Vector2) -> void:
 ## when the first rocket bursts: a gift box for a new item, confetti for an
 ## item the player already owns.
 func _roll_drop(at: Vector2) -> void:
+	if _buddy and Game.waiting_gifts().size() >= Game.TIMED_DROP_BOX_CAP:
+		return  # no room for another box beside the buddy
 	var result := Game.roll_drop()
 	if result.kind == DropRules.Kind.NOTHING:
 		return
@@ -301,42 +457,58 @@ func _spawn_gift(item_id: String, super_rare: bool, at: Vector2, landed: bool) -
 	var box := GiftBox.new()
 	box.item_id = item_id
 	box.super_rare = super_rare
-	box.floor_y = view.y - 64.0
-	box.target_x = _free_floor_x(at.x)
+	if _buddy:
+		var slot_index := _free_buddy_slot()
+		var slot := _buddy_slot(slot_index)
+		box.set_meta("buddy_slot", slot_index)
+		box.floor_y = slot.y
+		box.target_x = slot.x
+		box.position = slot if landed else Vector2(slot.x, minf(at.y, slot.y - 60.0))
+		box.opened.connect(_on_gift_opened.bind(box))
+		_drops.add_child(box)
+		return
+	var spot := _free_floor_spot(at.x)
+	box.floor_y = spot.y
+	box.target_x = spot.x
 	box.position = Vector2(box.target_x if landed else clampf(at.x, 70.0, view.x - 70.0), box.floor_y if landed else at.y)
 	box.opened.connect(_on_gift_opened.bind(box))
 	_drops.add_child(box)
 
 
-## A floor spot near `x` that keeps clear of the bobblehead's stand, the
-## corner hint and buttons, and other boxes.
-func _free_floor_x(x: float) -> float:
-	const SPACING := 76.0
+## A floor spot near `x`, clear of the bobblehead's stand and the other
+## boxes. When the floor is full, boxes stack: a second row sits on top of
+## the first, and so on. Returns (x, bottom edge y).
+func _free_floor_spot(x: float) -> Vector2:
+	const SPACING := 72.0
+	const BOX_HEIGHT := 47.0
 	var view := get_viewport_rect().size
+	var floor_y := view.y - 64.0
 	var stand_half := 150.0 * _head.scale.x
-	var lo := 300.0
-	var hi := view.x - 300.0
-	var taken: Array[float] = []
+	var lo := 80.0
+	var hi := view.x - 80.0
+	# Floor spots, nearest to `x` first, skipping the stand.
+	var spots: Array[float] = []
+	var spot := lo
+	while spot <= hi:
+		if absf(spot - _head.position.x) >= stand_half + SPACING * 0.5:
+			spots.append(spot)
+		spot += SPACING
+	spots.sort_custom(func(a: float, b: float) -> bool: return absf(a - x) < absf(b - x))
+	var stacked := {}
 	for child in _drops.get_children():
 		if child is GiftBox:
-			taken.append((child as GiftBox).target_x)
-	var side := -1.0 if x < _head.position.x else 1.0
-	var spot := clampf(x, lo, hi)
-	if absf(spot - _head.position.x) < stand_half + SPACING * 0.5:
-		spot = _head.position.x + side * (stand_half + SPACING * 0.5)
-	for attempt in 40:
-		var clear := true
-		for other in taken:
-			if absf(other - spot) < SPACING:
-				clear = false
-				break
-		if clear and spot >= lo and spot <= hi:
-			return spot
-		spot += side * SPACING
-		if spot > hi or spot < lo:
-			side = -side
-			spot = _head.position.x + side * (stand_half + SPACING * 0.5)
-	return clampf(x, lo, hi)
+			var box := child as GiftBox
+			var nearest := -1
+			for i in spots.size():
+				if absf(spots[i] - box.target_x) < SPACING * 0.5:
+					nearest = i
+			if nearest >= 0:
+				stacked[nearest] = int(stacked.get(nearest, 0)) + 1
+	for row in 4:
+		for i in spots.size():
+			if int(stacked.get(i, 0)) == row:
+				return Vector2(spots[i], floor_y - BOX_HEIGHT * row)
+	return Vector2(clampf(x, lo, hi), floor_y)
 
 
 ## Boxes still waiting from earlier (e.g. before a trip to Customize) are
@@ -346,6 +518,8 @@ func _restore_waiting_gifts() -> void:
 	var gifts := Game.waiting_gifts()
 	var i := 0
 	for item_id in gifts:
+		if _buddy and i >= Game.TIMED_DROP_BOX_CAP:
+			break  # the rest wait for the full game
 		var x := view.x * (0.2 + 0.6 * fmod(0.37 * float(i) + 0.13, 1.0))
 		_spawn_gift(item_id, gifts[item_id], Vector2(x, 0.0), true)
 		i += 1
@@ -378,8 +552,12 @@ func _show_toast(text: String) -> void:
 	add_child(_toast)
 	_toast.reset_size()
 	var view := get_viewport_rect().size
-	# Just under the banner, clear of the head.
-	_toast.position = Vector2((view.x - _toast.size.x) * 0.5, _banner.position.y + _banner.size.y + 14.0)
+	# Just under the banner, clear of the head (the buddy has no banner: top edge).
+	var top := BUDDY_TOP if _buddy else _banner.position.y + _banner.size.y + 14.0
+	if _buddy:
+		_toast.add_theme_font_size_override("font_size", 20)
+		_toast.reset_size()
+	_toast.position = Vector2((view.x - _toast.size.x) * 0.5, top)
 	var label := _toast
 	var tween := label.create_tween()
 	tween.tween_property(label, "position:y", label.position.y + 12.0, 2.2)
@@ -413,6 +591,9 @@ func _on_balloon_popped(cause: String) -> void:
 func _process(delta: float) -> void:
 	if not _playground:
 		return
+	if _buddy:
+		_update_passthrough()
+		_tick_timed_drops(delta)
 	# A climbing rocket that flies into the balloon head pops it.
 	if _head.is_balloon():
 		for at in _fireworks.rocket_positions():

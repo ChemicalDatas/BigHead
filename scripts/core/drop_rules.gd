@@ -26,9 +26,10 @@ class Result:
 
 ## `owned` should include items waiting in unopened gift boxes, so two boxes
 ## never hold the same new item.
-static func roll(rng: RandomNumberGenerator, drop_rate: float, owned: Callable, fireworks_launched := 0) -> Result:
+## `allow_super_rare` is false for the desktop buddy's timed drops.
+static func roll(rng: RandomNumberGenerator, drop_rate: float, owned: Callable, fireworks_launched := 0, allow_super_rare := true) -> Result:
 	var result := Result.new()
-	var super_pool := pool(Catalog.Rarity.SUPER_RARE, fireworks_launched)
+	var super_pool := pool(Catalog.Rarity.SUPER_RARE, fireworks_launched) if allow_super_rare else ([] as Array[String])
 	if not super_pool.is_empty() and rng.randf() < SUPER_RARE_RATE:
 		result.super_rare = true
 		_pick(rng, super_pool, owned, result)

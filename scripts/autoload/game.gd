@@ -12,6 +12,10 @@ extends Node
 ##   --reset-inventory       forget unlocked items; back to the starting set
 ##   --drop-rate=N           chance of a drop per right-click, 0 to 1 (default 0.05)
 ##   --fireworks-launched=N  set the lifetime fireworks count (tests the rig milestones)
+##   --fast-timed-drops      desktop buddy timed drops every 5-10 s instead of 60-90 min
+##
+## Not a test flag (it stays in the shipped game, as a second Steam launch option):
+##   --buddy                 start straight in desktop buddy mode (once a head is built)
 
 ## INTENTIONAL: the company name is "A.L.", not "A.I.". Do not correct it.
 const COMPANY_NAME := "Scapegoat A.L. LLC"
@@ -49,6 +53,14 @@ signal steam_avatar_arrived
 signal friends_with_big_head_changed(count: int)
 ## The shelf's friend list changed (a friend found, or an avatar arrived).
 signal shelf_friends_changed
+
+## Desktop buddy: a small, frameless, see-through, always-on-top window.
+const BUDDY_SIZE := Vector2i(560, 680)
+## Timed drops while the buddy runs: a random wait in this range (seconds).
+const TIMED_DROP_MIN := 3600.0
+const TIMED_DROP_MAX := 5400.0
+## Timed drops stop while this many gift boxes are waiting to be clicked.
+const TIMED_DROP_BOX_CAP := 12
 ## Emitted for every unlock (Steam shows its own popup; this is for logs and tests).
 signal achievement_unlocked(id: String)
 
@@ -73,6 +85,11 @@ var steam_available := false
 var friends_with_big_head := 0
 ## Friends with Big Head, for the shelf, in the order they were found.
 var shelf_friends: Array[Friend] = []
+## True while the game runs as the desktop buddy.
+var buddy_mode := false
+## 1 normally; --fast-timed-drops makes timed drops come every few seconds.
+var timed_drop_scale := 1.0
+var _saved_window := {}
 ## 1.0 normally; 0.1 with --fast-faces.
 var face_time_scale := 1.0
 
@@ -85,6 +102,9 @@ func _ready() -> void:
 	_fake_friends = _parse_fake_friends(args)
 	_drop_rng.randomize()
 	_parse_drop_rate(args)
+	if "--fast-timed-drops" in args:
+		timed_drop_scale = 10.0 / TIMED_DROP_MAX
+		print("[game] Timed drops every 5-10 s (--fast-timed-drops).")
 	if "--fast-faces" in args:
 		face_time_scale = 0.1
 		print("[game] Face swaps run 10x faster (--fast-faces).")
@@ -145,6 +165,11 @@ func _ready() -> void:
 		var fixed := profile.build.sanitize(inventory)
 		if not fixed.is_empty():
 			print("[game] Saved head used locked items (%s); switched to owned ones." % ", ".join(fixed))
+	if "--buddy" in args:
+		if profile.has_build():
+			enter_buddy.call_deferred()
+		else:
+			print("[game] --buddy: build your bobblehead first; starting the normal game.")
 
 
 ## Reads --fake-friends=N or --fake-friends N. Returns -1 when the flag is absent
@@ -198,6 +223,78 @@ func _parse_drop_rate(args: PackedStringArray) -> void:
 		else:
 			push_warning("--drop-rate needs a number from 0 to 1, like --drop-rate=1 (got \"%s\"); ignoring it." % value)
 		return
+
+
+## A timed drop for the desktop buddy: always drops something, never a super-rare.
+func roll_timed_drop() -> DropRules.Result:
+	var fireworks := stats.get_int(AchievementRules.STAT_FIREWORKS)
+	var result := DropRules.roll(_drop_rng, 1.0, func(id: String) -> bool:
+		return inventory.owns(id) or _waiting_in_boxes.has(id), fireworks, false)
+	if result.kind == DropRules.Kind.NEW_ITEM:
+		_waiting_in_boxes[result.item_id] = false
+	return result
+
+
+## Seconds until the next timed drop (random, 60-90 minutes unless sped up).
+func next_timed_drop_wait() -> float:
+	return randf_range(TIMED_DROP_MIN, TIMED_DROP_MAX) * timed_drop_scale
+
+
+## Turns the game into the desktop buddy: remembers the window as it was,
+## then makes it small, frameless, see-through and always on top, in the
+## bottom-right corner of the screen. The playground reloads in buddy mode.
+func enter_buddy() -> void:
+	if buddy_mode:
+		return
+	var window := get_window()
+	_saved_window = {
+		"mode": window.mode, "size": window.size, "position": window.position,
+		"borderless": window.borderless, "always_on_top": window.always_on_top,
+		"transparent": window.transparent, "transparent_bg": window.transparent_bg,
+		"unresizable": window.unresizable, "content_scale_mode": window.content_scale_mode,
+	}
+	buddy_mode = true
+	window.mode = Window.MODE_WINDOWED
+	window.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+	window.borderless = true
+	window.always_on_top = true
+	window.unresizable = true
+	window.transparent = true
+	window.transparent_bg = true
+	window.size = BUDDY_SIZE
+	var usable := DisplayServer.screen_get_usable_rect(window.current_screen)
+	window.position = usable.end - window.size - Vector2i(16, 16)
+	print("[buddy] Desktop buddy on (%dx%d at %s)." % [window.size.x, window.size.y, window.position])
+	skip_reveal_once = true
+	go_to(REVEAL_SCENE)
+
+
+## Back to the full game window, exactly as it was.
+func exit_buddy() -> void:
+	if not buddy_mode:
+		return
+	buddy_mode = false
+	var window := get_window()
+	DisplayServer.window_set_mouse_passthrough(PackedVector2Array(), window.get_window_id())
+	if _saved_window.is_empty():
+		_saved_window = {"mode": Window.MODE_WINDOWED, "size": Vector2i(1280, 720), "borderless": false,
+			"always_on_top": false, "transparent": false, "transparent_bg": false, "unresizable": false,
+			"content_scale_mode": Window.CONTENT_SCALE_MODE_CANVAS_ITEMS}
+	window.transparent_bg = _saved_window["transparent_bg"]
+	window.transparent = _saved_window["transparent"]
+	window.always_on_top = _saved_window["always_on_top"]
+	window.borderless = _saved_window["borderless"]
+	window.unresizable = _saved_window["unresizable"]
+	window.content_scale_mode = _saved_window["content_scale_mode"]
+	window.size = _saved_window["size"]
+	if _saved_window.has("position"):
+		window.position = _saved_window["position"]
+	else:
+		window.move_to_center()
+	window.mode = _saved_window["mode"]
+	print("[buddy] Back to the full game.")
+	skip_reveal_once = true
+	go_to(REVEAL_SCENE)
 
 
 ## One right-click's drop roll. A new item is held "in a box" until opened.
