@@ -39,6 +39,7 @@ var _done_button: Button
 ## True when Customize was opened from the playground (a saved head exists).
 var _from_playground := false
 var _file_dialog: FileDialog
+var _mystery := ""
 var _pending_upload := ""      ## which upload the open dialog is for, or "template"
 var _rng := RandomNumberGenerator.new()
 
@@ -309,7 +310,9 @@ func _hint_label(text: String) -> Label:
 	return label
 
 
-## A picker for a catalog item: items the player doesn't own read "(locked)".
+## A picker for a catalog item. It only steps through items the player owns,
+## plus one "?" entry when some are still locked: "?" shows a question mark
+## in the preview and how many are left to find, without changing the head.
 ## Changing a hat or body also moves its Style picker to a style the player owns.
 func _make_item_picker(category: String) -> Control:
 	return _make_picker(category,
@@ -318,6 +321,8 @@ func _make_item_picker(category: String) -> Control:
 				return "-"
 			if category == "mouth" and not Catalog.animal_face(_build.face_shape).is_empty():
 				return "The face's own"  # animal faces have their mouth built in
+			if _mystery == category:
+				return "?   %d still locked" % _build.locked_count(category, Game.inventory)
 			var index := _build.get_choice(category)
 			var text := HeadBuild.option_label(category, index)
 			if _build.is_option_owned(category, index, Game.inventory):
@@ -328,7 +333,19 @@ func _make_item_picker(category: String) -> Control:
 		func(step: int) -> void:
 			if category == "accessory_variant" and _build.accessory == 0:
 				return
-			_build.cycle(category, step)
+			if category == "mouth" and not Catalog.animal_face(_build.face_shape).is_empty():
+				return
+			# Step through owned choices, plus "?" (-1) when some are locked.
+			var ring: Array[int] = _build.owned_choices(category, Game.inventory)
+			if _build.locked_count(category, Game.inventory) > 0:
+				ring.append(-1)
+			var here := -1 if _mystery == category else _build.get_choice(category)
+			var pos := ring.find(here)
+			var pick := ring[posmod(pos + step, ring.size())] if pos >= 0 else ring[0]
+			_set_mystery(category if pick == -1 else "")
+			if pick == -1:
+				return
+			_build.set_choice(category, pick)
 			if category == "hair":
 				_refresh_hair_color_enabled()
 			if category == "rig" or category == "body_shape":
@@ -406,6 +423,17 @@ func _changed(direction: float) -> void:
 	_update_locks()
 	if direction != 0.0:
 		_head.bobble.nudge_toward(Vector2(direction, -0.3), 0.6)
+
+
+## Which picker is showing "?" (at most one; "" for none). The head keeps its
+## real choice underneath; only the preview shows a question mark.
+func _set_mystery(category: String) -> void:
+	var before := _mystery
+	_mystery = category
+	_head.mystery = category
+	for key in [before, category]:
+		if key != "" and _value_labels.has(key):
+			(_value_labels[key] as Callable).call()
 
 
 ## The rainbow mane keeps its own colors, so the hair color does nothing there.

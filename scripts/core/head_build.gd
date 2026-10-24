@@ -25,6 +25,8 @@ const CATEGORY_LABELS := {
 
 ## Which base choice each style picker belongs to.
 const VARIANT_OF := {"accessory_variant": "accessory", "body_variant": "body_shape"}
+## The Style picker for each base choice that has styles.
+const STYLE_OF := {"accessory": "accessory_variant", "body_shape": "body_variant"}
 
 ## Swatches offered next to the free pickers.
 const SKIN_PRESETS: Array[Color] = [
@@ -114,6 +116,32 @@ func select_owned_variant(base_category: String, inventory: InventoryPort) -> vo
 		if is_option_owned(style, index, inventory):
 			set_choice(style, index)
 			return
+
+
+## The choices in a category the player owns, in order. For hats, bodies and
+## faces a base counts when any of its styles is owned; for a Style picker,
+## the owned styles of the current base.
+func owned_choices(category: String, inventory: InventoryPort) -> Array[int]:
+	var owned: Array[int] = []
+	var style: String = STYLE_OF.get(category, "")
+	var saved := get_choice(category)
+	for index in option_count(category):
+		var has_it := is_option_owned(category, index, inventory)
+		if not has_it and style != "":
+			set(category, index)
+			for s in option_count(style):
+				if is_option_owned(style, s, inventory):
+					has_it = true
+					break
+			set(category, saved)
+		if has_it:
+			owned.append(index)
+	return owned
+
+
+## How many choices in a category are still locked.
+func locked_count(category: String, inventory: InventoryPort) -> int:
+	return option_count(category) - owned_choices(category, inventory).size()
 
 
 func is_option_owned(category: String, index: int, inventory: InventoryPort) -> bool:

@@ -116,7 +116,10 @@ Run with `--unlock-all` to see everything.
 
 - [ ] Every accessory base has four variants, numbered #1-#4 in a Style picker under Accessory
 - [ ] Every body base has four variants, in a Style picker under Body
-- [ ] Locked styles read "#3 (locked)"; switching hat or body jumps to a style you own
+- [ ] Locked items and styles never show by name: each picker steps through what you own, then one "?" entry reading "N still locked"
+- [ ] On "?", the preview shows a question mark where that part goes (grey face or body for those); Play/Save still work and keep your real choice
+- [ ] With `--unlock-all` there's no "?" entry
+- [ ] Switching hat or body jumps to a style you own
 - [ ] A dropped style is named with its number, e.g. "New: Wizard hat #3!"
 - [ ] Variants of one item keep the same shape and differ only by colors and patterns
 - [ ] Variants look right with every face shape and with head size at 80% and 150%

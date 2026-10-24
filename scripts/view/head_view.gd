@@ -100,6 +100,10 @@ var look_at_cursor := true
 ## desktop buddy). Works on Windows and X11; Wayland only reports the cursor
 ## while it's over the window.
 var global_cursor := false
+## Customize's "?" entry: the category whose part is drawn as a question mark
+## (the build underneath doesn't change). "" for none.
+var mystery := ""
+const MYSTERY_GREY := Color("#9a93a6")
 ## Where the eyes look: a direction with length 0..1 (1 = as far as they go), smoothed.
 var _gaze := Vector2.ZERO
 ## Extra head tilt toward the cursor; drawing only, so it never disturbs the physics.
@@ -632,11 +636,22 @@ func _draw() -> void:
 
 
 func _draw_head_layers(c: Vector2, r: float, stars: bool) -> void:
-	_draw_hair_back(c, r)
+	var hidden_hair := mystery == "hair"
+	var hidden_hat := mystery == "accessory" or mystery == "accessory_variant"
+	if not hidden_hair:
+		_draw_hair_back(c, r)
 	if not face_hidden:
 		_draw_face(c, r)
-	_draw_hair_front(c, r)
-	_draw_accessory(c, r)
+	if not hidden_hair:
+		_draw_hair_front(c, r)
+	if not hidden_hat:
+		_draw_accessory(c, r)
+	if hidden_hair:
+		_draw_mystery_mark(c + Vector2(0, -r * 0.98), r * 0.5)
+	if hidden_hat:
+		_draw_mystery_mark(c + Vector2(0, -r * 1.35), r * 0.6)
+	if mystery == "rig":
+		_draw_mystery_mark(c + Vector2(r * 1.25, -r * 0.4), r * 0.5)
 	if stars and _stars_left > 0.0:
 		_draw_dizzy_stars(c, r)
 
@@ -833,7 +848,11 @@ func _draw_base_and_body() -> void:
 	var body := BodyShapes.outline(shape)
 	var textured := build.use_body_texture and body_texture != null
 	var look := Variants.body(Catalog.BASES["body"][shape], build.body_variant)
-	if shape == BodyShapes.UNICORN:
+	var hidden_body := mystery == "body_shape" or mystery == "body_variant"
+	if hidden_body:
+		look = {"base": MYSTERY_GREY, "pattern": ""}
+		textured = false
+	if shape == BodyShapes.UNICORN and not hidden_body:
 		_draw_rainbow_tail()
 	_draw_legs(shape, look, textured)
 	_draw_arms(shape, look, textured)
@@ -841,11 +860,14 @@ func _draw_base_and_body() -> void:
 		draw_colored_polygon(body, Color.WHITE, BodyShapes.uvs(body), body_texture)
 	else:
 		_fill(body, look, 60.0)
-		# Trim coordinates are for the full-width outline; squeeze them to match.
-		draw_set_transform_matrix(_body_xform * Transform2D(0.0, Vector2(BodyShapes.width_scale(shape), 1.0), 0.0, Vector2.ZERO))
-		_draw_body_details(shape, look)
-		draw_set_transform_matrix(_body_xform)
+		if not hidden_body:
+			# Trim coordinates are for the full-width outline; squeeze them to match.
+			draw_set_transform_matrix(_body_xform * Transform2D(0.0, Vector2(BodyShapes.width_scale(shape), 1.0), 0.0, Vector2.ZERO))
+			_draw_body_details(shape, look)
+			draw_set_transform_matrix(_body_xform)
 	draw_polyline(_closed(body), OUTLINE, 4.0, true)
+	if hidden_body:
+		_draw_mystery_mark(Vector2(0, 108), 46.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
@@ -979,7 +1001,23 @@ func _draw_neck() -> void:
 	draw_polyline(points, OUTLINE, 2.0, true)
 
 
+## A big "?" where a part would be (Customize's locked-items entry).
+func _draw_mystery_mark(at: Vector2, size: float) -> void:
+	var font := ThemeDB.fallback_font
+	var font_size := int(size * 1.6)
+	var width := font.get_string_size("?", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var pos := at + Vector2(-width * 0.5, font_size * 0.36)
+	draw_string_outline(font, pos, "?", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, maxi(4, font_size / 8), OUTLINE)
+	draw_string(font, pos, "?", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color("#ffe066"))
+
+
 func _draw_face(c: Vector2, r: float) -> void:
+	if mystery == "face_shape":
+		var blank := _ellipse(c, r * 0.9, r * 0.92, 48)
+		draw_colored_polygon(blank, MYSTERY_GREY)
+		draw_polyline(_closed(blank), OUTLINE, 5.0, true)
+		_draw_mystery_mark(c, r * 0.8)
+		return
 	var outline := _face_polygon(build.face_shape, c, r)
 	var scaled := PackedVector2Array()
 	for p in outline:
@@ -1012,8 +1050,13 @@ func _draw_face(c: Vector2, r: float) -> void:
 	match animal:
 		"unicorn": _draw_unicorn_muzzle(c, r, s)
 		"goat": _draw_goat_muzzle(c, r, s)
-	_draw_eyes(c, r, s)
-	if animal == "":
+	if mystery == "eyes":
+		_draw_mystery_mark(c + Vector2(0, -r * 0.12) * s, r * 0.32)
+	else:
+		_draw_eyes(c, r, s)
+	if mystery == "mouth" and animal == "":
+		_draw_mystery_mark(c + Vector2(0, r * 0.4) * s, r * 0.3)
+	elif animal == "":
 		_draw_mouth(c, r, s)  # animal faces have their own mouth on the muzzle
 
 

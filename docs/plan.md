@@ -381,7 +381,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Gift box piles | Unlimited (2026-10-24): front row on the floor, rows behind (higher, smaller, darker, brick-offset), then stacked up; the front-most box under the cursor opens |
 | Starting accessories | None; the first hat comes from a drop |
 | Starting set | Round and Oval faces, Buzz and Spiky hair, Dots and Googly eyes, Smile and Grin mouths, Suit and T-shirt bodies |
-| Locked items in Customize | Visible and previewable, marked "(locked)"; Play/Save disabled until every choice is owned |
+| Locked items in Customize | Hidden (2026-10-24): pickers step through owned items only, plus one "?" entry showing "N still locked" and a question mark in the preview; the head keeps its real choice underneath |
 | Drop chances | 1 in 20 right-clicks for the regular pool; 1 in 500 for the separate super-rare roll (tunable) |
 | Unicorn set rarity | Face, rainbow mane, all four unicorn body styles and horn #1 are super-rare; horns #2-#4 are a separate multiplayer-only tier no single-player roll can give |
 | Rainbow mane | Fixed rainbow colors; the hair color picker greys out |
