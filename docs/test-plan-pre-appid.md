@@ -210,13 +210,22 @@ checks. Each pop prints `[rig] Balloon popped (<cause>)` in the terminal.
 - [ ] Face swaps, eyes and dizzy stars still work on the marionette
 - [ ] Level-Headed only counts once the puppet and head are both still
 
-## 5. Room and shelf
+## 5. Friends' shelves
 
-Status: **Not built yet**
+Status: **Built** (2026-10-24). Use `--fake-friends=N` for made-up friends.
 
-- [ ] With no background chosen, the playground is a room with a shelf on the wall
-- [ ] Choosing another background or uploading one replaces the room behind; the shelf stays
-- [ ] `--fake-friends=N` puts N friends' bobbleheads on the shelf, each with its own look that stays the same between launches
+- [ ] No friends (no flag, or no Steam friends with Big Head): the two wall shelves show, empty, waiting for friends
+- [ ] The shelves fade in with the banner, not before the pop; back from Customize they're already there
+- [ ] `--fake-friends=4`: four friends on the left wall shelf
+- [ ] `--fake-friends=12`: both wall shelves full
+- [ ] `--fake-friends=20`: a bookcase appears under the right wall shelf and fills from the top
+- [ ] `--fake-friends=50`: the right bookcase is full and a second appears on the left
+- [ ] `--fake-friends=80`: 72 on the shelves, the rest left off (fireworks still count all 80)
+- [ ] Each friend keeps the same look between launches; avatars are their own (generated for fake friends)
+- [ ] Clicking a friend's head makes it wobble, and doesn't nudge your bobblehead or launch anything
+- [ ] Hovering a friend shows their name above them
+- [ ] The shelves stay clear of the banner, your bobblehead, the gift boxes and the buttons
+- [ ] They show over every background, and over an uploaded one
 
 ## 6. Desktop buddy
 

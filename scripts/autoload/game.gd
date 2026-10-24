@@ -47,6 +47,8 @@ const REVEAL_SCENE := "res://scenes/reveal.tscn"
 
 signal steam_avatar_arrived
 signal friends_with_big_head_changed(count: int)
+## The shelf's friend list changed (a friend found, or an avatar arrived).
+signal shelf_friends_changed
 ## Emitted for every unlock (Steam shows its own popup; this is for logs and tests).
 signal achievement_unlocked(id: String)
 
@@ -69,6 +71,8 @@ var saved_build := SavedBuild.new()
 var profile := PlayerProfile.new()
 var steam_available := false
 var friends_with_big_head := 0
+## Friends with Big Head, for the shelf, in the order they were found.
+var shelf_friends: Array[Friend] = []
 ## 1.0 normally; 0.1 with --fast-faces.
 var face_time_scale := 1.0
 
@@ -127,9 +131,12 @@ func _ready() -> void:
 
 	if _fake_friends >= 0:
 		_set_friends(_fake_friends)
+		_add_fake_shelf_friends(_fake_friends)
 		print("[game] Pretending %d friends have Big Head (--fake-friends)." % _fake_friends)
 	elif steam_available:
 		identity.friends_with_achievement_counted.connect(_set_friends)
+		identity.friend_found.connect(_on_friend_found)
+		identity.friend_avatar_ready.connect(_on_friend_avatar_ready)
 		identity.count_friends_with_achievement((achievements as SteamAchievements).api_name(AchievementRules.BIG_HEAD))
 
 	profile.build = saved_build.load_build()
@@ -257,6 +264,42 @@ func report(event: String, data: Dictionary = {}) -> void:
 
 func go_to(scene_path: String) -> void:
 	get_tree().change_scene_to_file(scene_path)
+
+
+const FAKE_NAMES: Array[String] = [
+	"Noggin", "Bobbles", "Dome Patrol", "Cranium Kid", "Mr. Melon", "Big Brain",
+	"Headliner", "Wobbly Pete", "Neck Spring", "Knucklehead", "Boop Master", "Spring Loaded",
+	"Head Honcho", "Thinktank", "Bonce", "Lofty", "Swell Fella", "Topper",
+]
+
+
+## --fake-friends=N: N made-up friends with generated avatars on the shelf.
+func _add_fake_shelf_friends(count: int) -> void:
+	for i in count:
+		var name := FAKE_NAMES[i % FAKE_NAMES.size()]
+		if i >= FAKE_NAMES.size():
+			name += " %d" % (i / FAKE_NAMES.size() + 1)
+		var friend := Friend.new(900000 + i, name)
+		friend.avatar = FakeAvatars.make(i)
+		shelf_friends.append(friend)
+	shelf_friends_changed.emit()
+
+
+func _on_friend_found(steam_id: int, name: String) -> void:
+	for friend in shelf_friends:
+		if friend.steam_id == steam_id:
+			return
+	shelf_friends.append(Friend.new(steam_id, name))
+	identity.request_friend_avatar(steam_id)
+	shelf_friends_changed.emit()
+
+
+func _on_friend_avatar_ready(steam_id: int, texture: Texture2D) -> void:
+	for friend in shelf_friends:
+		if friend.steam_id == steam_id:
+			friend.avatar = texture
+			shelf_friends_changed.emit()
+			return
 
 
 func _set_friends(count: int) -> void:

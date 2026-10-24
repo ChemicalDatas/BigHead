@@ -14,6 +14,10 @@ has its own Steam App ID.
 - **Collection.** New players own two options each of face shape, hair,
   eyes, mouth and body, and no accessories. Everything else shows in the
   builder as "(locked)" until it's unlocked.
+- **Friends' shelves.** Friends who have Big Head stand on shelves on the
+  wall as little bobbleheads with their Steam avatar as the face. Click one
+  to make it wobble; hover for the name. Up to 72 (two wall shelves, then a
+  bookcase on each side). `--fake-friends=N` fills them for testing.
 - **Drops.** Each right-click in the playground has a 1 in 20 chance of a
   drop. A new item falls as a gift box; click it to unlock the item. An item
   you already own bursts into confetti instead. Unclicked boxes are lost when

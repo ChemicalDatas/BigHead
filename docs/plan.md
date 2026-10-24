@@ -157,11 +157,13 @@ Everything here builds and tests on app 480 while Steam partner verification run
 - [x] Balloon rig, with the Pop Goes the Head achievement
 - [x] Marionette rig: strings to the hands, or to the four leg tops on the goat and unicorn
 
-**5. Room and shelf**
+**5. Friends' shelves**
 
-- [ ] The default background becomes a room with a shelf on the wall
-- [ ] A custom background replaces the room's wall art; the shelf always stays
-- [ ] The shelf shows friends' bobbleheads (see Iteration 3, Friends shelf); before the App ID it's filled from `--fake-friends=N`
+- [x] No room: the shelves go over whichever background is chosen, uploads included
+- [x] A shelf high on the left wall, then the right; then a five-shelf bookcase under the right one, then under the left. Six per shelf, 72 friends at most; later friends aren't added
+- [x] Each friend: Steam avatar face, body/hair/accessory picked from their Steam ID (common items only); click to wobble, hover for the name
+- [x] Fades in with the banner so it doesn't spoil the pop
+- [x] `--fake-friends=N` fills it with made-up friends and generated avatars; with Steam, friends who have Big Head appear as they're found
 
 **6. Desktop buddy**
 
@@ -225,7 +227,7 @@ Iteration 3 adds friends, in order of cost: local first, networked second.
 
 - Trading between players means Steam Inventory Service: item definitions, tradable flags, and possibly Steam Market listings. That needs the App ID and Valve setup, and tradable items with market value bring fraud and regulatory questions.
 - A lighter first version: furniture unlocked through play and achievements, with trading added later.
-- Decided: the room (with its shelf) is the default background. An uploaded background replaces the room's wall art; the shelf stays either way.
+- Decided (2026-10-24): no room for now. The friends' shelves sit over the current backgrounds and uploads.
 
 Non-Steam players stay single-player: multiplayer requires Steam, so built-only heads never go online.
 
@@ -363,7 +365,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Desktop buddy | In; no global click hooks |
 | No spoilers before the pop | Builder says "bobblehead", never "Big Head"; the banner sample shows only the name; the banner lands on the same beat as the pop |
 | Builder button | "Play" |
-| Before the App ID | Catalog and inventory, drops, content, rigs, room and shelf, desktop buddy, in that order; Steam-ready prep in parallel |
+| Before the App ID | Catalog and inventory, drops, content, rigs, friends' shelves, desktop buddy, in that order; Steam-ready prep in parallel |
 | Customize Cancel | Cancel button; Esc cancels instead of quitting; built in roadmap step 1 |
 | Desktop buddy drops | Random time every 60 to 90 minutes while the buddy runs; regular pool, no super-rares; pauses at 12 waiting gift boxes |
 | Starting accessories | None; the first hat comes from a drop |
@@ -377,7 +379,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Balloon pops | Whiplash fling, touching the floor, or a rocket hit; the tear spreads from the hit point, a scrap is left, it reinflates after 3 s |
 | Animal faces | One standalone face per animal body style (4 unicorn, 4 goat), colored like that body, with its own muzzle and mouth; the mouth picker doesn't apply. Unicorn faces super-rare, goat faces common |
 | Confetti | Paper pieces (strips, dots, stars, hearts, spirals) that flip and flutter, drawn in front of fireworks |
-| Default background | A room with a shelf of friends' bobbleheads; a custom background replaces the wall, the shelf stays |
+| Friends' shelves | No room: shelves over the current backgrounds. Left wall, right wall, then a 5-shelf bookcase on the right, then the left; 6 per shelf, 72 max, later friends not added |
 | Friends on the shelf | Steam avatar face plus a default body, hair and accessory per friend; their custom builds aren't fetched |
 | Multiplayer room | Players walk their bobbleheads around; the room grows with the number of friends in the game |
 | Test flags | Removed from release builds; some return as in-game cheat codes, chosen before shipping |

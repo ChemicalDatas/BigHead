@@ -8,6 +8,7 @@ extends IdentityPort
 
 const STEAM_INIT_OK := 0
 const AVATAR_LARGE := 3            ## Steam.AVATAR_LARGE (184 px)
+const AVATAR_MEDIUM := 2           ## Steam.AVATAR_MEDIUM (64 px), plenty for the shelf
 const FRIEND_FLAG_IMMEDIATE := 4   ## Steam.FRIEND_FLAG_IMMEDIATE (regular friends)
 const MAX_FRIENDS_CHECKED := 500
 const MAX_IN_FLIGHT := 8           ## friend stat requests in flight at once
@@ -105,6 +106,7 @@ func _on_user_stats_received(_game_id: int, result: int, user_id: int) -> void:
 			achieved = answer
 		if achieved:
 			_lookup_count += 1
+			friend_found.emit(user_id, str(_steam.call("getFriendPersonaName", user_id)))
 			friends_with_achievement_counted.emit(_lookup_count)
 	if _lookup_queue.is_empty() and _lookup_in_flight == 0:
 		print("[friends] %d friends have %s" % [_lookup_count, _lookup_api_name])
@@ -118,8 +120,15 @@ func _process(_delta: float) -> void:
 		_steam.call("run_callbacks")
 
 
+func request_friend_avatar(steam_id: int) -> void:
+	if _available:
+		_steam.call("getPlayerAvatar", AVATAR_MEDIUM, steam_id)
+
+
 func _on_avatar_loaded(user_id: int, avatar_size: int, avatar_buffer: PackedByteArray) -> void:
-	if user_id != local_id():
-		return
 	var image := Image.create_from_data(avatar_size, avatar_size, false, Image.FORMAT_RGBA8, avatar_buffer)
-	local_avatar_ready.emit(ImageTexture.create_from_image(image))
+	var texture := ImageTexture.create_from_image(image)
+	if user_id == local_id():
+		local_avatar_ready.emit(texture)
+	else:
+		friend_avatar_ready.emit(user_id, texture)

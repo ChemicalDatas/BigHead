@@ -19,6 +19,7 @@ const STARS_SECONDS := 3.0
 const STARS_COOLDOWN := 30.0
 
 var _background: BackgroundView
+var _shelves: Shelves
 var _head: HeadView
 var _confetti: Confetti
 ## Gift boxes and drop confetti live on their own layer above the head.
@@ -44,6 +45,10 @@ func _ready() -> void:
 	_background.style = profile.style
 	_background.image = Game.uploads.texture(UploadStore.BACKGROUND)
 	add_child(_background)
+	# Friends' shelves go right over the background, behind everything else.
+	_shelves = Shelves.new()
+	_shelves.visible = false
+	add_child(_shelves)
 
 	_head = HeadView.new()
 	_head.base_radius = BASE_RADIUS
@@ -105,6 +110,7 @@ func _layout() -> void:
 	_head.position = Vector2(view.x * 0.5, bottom - _head.extent_below_pivot() * fit)
 	_confetti.position = _head.position + Vector2(0, -_head.radius() * 0.92 * fit)
 	_banner.position.x = (view.x - _banner.size.x) * 0.5
+	_shelves.layout(view)
 	_hint.position.y = view.y - 40.0
 
 
@@ -171,6 +177,7 @@ func _run_reveal() -> void:
 		await _slam_banner()
 
 	Game.report("reveal_finished")
+	_shelves.appear()
 	_playground = true
 
 
@@ -189,6 +196,7 @@ func _enter_playground_directly() -> void:
 	_layout()
 	_banner.position.y = BANNER_TOP
 	_buttons.modulate.a = 1.0
+	_shelves.appear(true)
 	_playground = true
 	if steam_face and profile.has_build() and profile.style.face_mode == SceneStyle.FaceMode.ALTERNATE:
 		_run_face_cycle()

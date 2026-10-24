@@ -7,6 +7,10 @@ signal local_avatar_ready(texture: Texture2D)
 ## How many friends have a given achievement; may be emitted several times
 ## as results arrive.
 signal friends_with_achievement_counted(count: int)
+## Each friend found by count_friends_with_achievement, as they're found.
+signal friend_found(steam_id: int, name: String)
+## A friend's avatar, after request_friend_avatar.
+signal friend_avatar_ready(steam_id: int, texture: Texture2D)
 
 
 func is_available() -> bool:
@@ -30,6 +34,11 @@ func request_local_avatar() -> void:
 ## answers through friends_with_achievement_counted.
 func count_friends_with_achievement(_api_name: String) -> void:
 	friends_with_achievement_counted.emit(0)
+
+
+## Starts loading a friend's avatar; answers through friend_avatar_ready.
+func request_friend_avatar(_steam_id: int) -> void:
+	pass
 
 
 ## Friends as profiles. Empty until the friends shelf in iteration 3.
