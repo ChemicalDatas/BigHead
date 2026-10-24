@@ -14,6 +14,8 @@ extends Node
 ##   --fireworks-launched=N  set the lifetime fireworks count (tests the rig milestones)
 ##   --fast-timed-drops      desktop buddy timed drops every 5-10 s instead of 60-90 min
 ##   --store-screenshots     stage and save the Steam store screenshots (tools/store_screenshots.gd)
+##   --host-room             host a shared room straight away (direct connection)
+##   --join-room=IP[:PORT]   join a shared room straight away
 ##
 ## Not a test flag (it stays in the shipped game, as a second Steam launch option):
 ##   --buddy                 start straight in desktop buddy mode (once a head is built)
@@ -49,6 +51,7 @@ const CONFETTI_EVERY_CYCLES := 10
 const SPLASH_SCENE := "res://scenes/splash.tscn"
 const BUILDER_SCENE := "res://scenes/head_builder.tscn"
 const REVEAL_SCENE := "res://scenes/reveal.tscn"
+const ROOM_SCENE := "res://scenes/room.tscn"
 
 signal steam_avatar_arrived
 signal friends_with_big_head_changed(count: int)
@@ -90,6 +93,10 @@ var buddy_mode := false
 ## 1 normally; --fast-timed-drops makes timed drops come every few seconds.
 var timed_drop_scale := 1.0
 var _saved_window := {}
+## Multiplayer: the shared room session (see NetSession).
+var net := NetSession.new()
+## A message for the playground to show once it's back (e.g. "The host left").
+var pending_toast := ""
 ## 1.0 normally; 0.1 with --fast-faces.
 var face_time_scale := 1.0
 
@@ -202,6 +209,16 @@ func _ready() -> void:
 		var fixed := profile.build.sanitize(inventory)
 		if not fixed.is_empty():
 			print("[game] Saved head used locked items (%s); switched to owned ones." % ", ".join(fixed))
+	add_child(net)
+	if steam_available:
+		net.use_steam(identity.steam())
+	net.connected.connect(func() -> void:
+		if buddy_mode:
+			exit_buddy()
+		go_to(ROOM_SCENE))
+	net.ended.connect(_back_from_room)
+	net.failed.connect(_back_from_room)
+	_check_room_launch(args)
 	if "--store-screenshots" in args:
 		add_child((load("res://tools/store_screenshots.gd") as GDScript).new())
 	if "--buddy" in args:
@@ -262,6 +279,39 @@ func _parse_drop_rate(args: PackedStringArray) -> void:
 		else:
 			push_warning("--drop-rate needs a number from 0 to 1, like --drop-rate=1 (got \"%s\"); ignoring it." % value)
 		return
+
+
+## Launched from a Steam invite (+connect_lobby <id>), or the dev options
+## --host-room / --join-room=IP. Needs a built head first.
+func _check_room_launch(args: PackedStringArray) -> void:
+	var all := OS.get_cmdline_args()
+	var i := all.find("+connect_lobby")
+	if i >= 0 and i + 1 < all.size() and profile.has_build():
+		net.join_steam_lobby.call_deferred(int(all[i + 1]))
+		return
+	if not profile.has_build():
+		return
+	if "--host-room" in args:
+		net.host_direct.call_deferred()
+	for arg in args:
+		if arg.begins_with("--join-room="):
+			net.join_direct.call_deferred(arg.get_slice("=", 1))
+
+
+## Out of the room (left, host gone, or couldn't connect): back to the playground.
+func _back_from_room(reason: String) -> void:
+	pending_toast = reason
+	if get_tree().current_scene != null and get_tree().current_scene.scene_file_path == ROOM_SCENE:
+		skip_reveal_once = true
+		go_to(REVEAL_SCENE)
+
+
+## Leave the room on purpose.
+func leave_room() -> void:
+	net.leave()
+	pending_toast = ""
+	skip_reveal_once = true
+	go_to(REVEAL_SCENE)
 
 
 ## A timed drop for the desktop buddy: always drops something, never a super-rare.
@@ -401,6 +451,7 @@ func report(event: String, data: Dictionary = {}) -> void:
 func go_to(scene_path: String) -> void:
 	match scene_path:
 		BUILDER_SCENE: set_presence("Customizing")
+		ROOM_SCENE: set_presence("Together")
 		REVEAL_SCENE: set_presence("Buddy" if buddy_mode else "Playing")
 	get_tree().change_scene_to_file(scene_path)
 

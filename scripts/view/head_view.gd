@@ -103,6 +103,9 @@ var global_cursor := false
 ## Customize's "?" entry: the category whose part is drawn as a question mark
 ## (the build underneath doesn't change). "" for none.
 var mystery := ""
+## False for other players' heads in a shared room: their bobble comes over
+## the network instead of from local physics.
+var simulate := true
 const MYSTERY_GREY := Color("#9a93a6")
 ## Where the eyes look: a direction with length 0..1 (1 = as far as they go), smoothed.
 var _gaze := Vector2.ZERO
@@ -289,7 +292,7 @@ func _update_limb_swing(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if head_only:
+	if head_only or not simulate:
 		return
 	if build.rig != _rig_applied:
 		_apply_rig()

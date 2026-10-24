@@ -227,7 +227,7 @@ Screenshots can be rendered straight from the game at 1920 × 1080 with the same
 Iteration 3 adds friends, in order of cost: local first, networked second.
 
 1. **Friends shelf** (no networking): every Steam friend who owns Big Head stands on the shelf in your room as a small bobblehead, read locally through `get_friends()`. Each one has that friend's Steam avatar as its face, and a default body, hair and accessory of its own (picked from the friend's Steam ID, so it's the same every time). Their own custom builds aren't fetched: nothing has to be shared or synced to fill the shelf.
-2. **Lobby playground:** friends' heads share one room over Steam lobbies and Steam Networking Sockets (relayed, no port forwarding). Each player walks their own bobblehead around the room. The room grows with the number of friends in the game at the time: a cozy room for two, wider for a full lobby.
+2. **Shared room (first version built 2026-10-24, ahead of the App ID):** up to 8 players in one room. "Play together" in the playground: invite a Steam friend (a friends-only Steam lobby; accepting the invite, "Join game", or launching with `+connect_lobby` joins it), host a room for a direct connection, or join one by address. Steam traffic goes through Steam's relay when GodotSteam's SteamMultiplayerPeer is installed; otherwise the lobby passes the host's address and players connect directly (port 7777 UDP). Each player walks their own bobblehead (A/D or arrows), can boop or fling anyone's head, and right-clicks for fireworks everyone sees (one rocket per player in the room). The room widens with each player after two. Everyone sees the host's background; no friends' shelves in the room. Not yet: drops in the room, heads bumping into each other.
 3. **Interaction:** flick, drag and boop each other's heads; head-to-head collisions; firework duels.
 4. **"Big Head Off":** longest bobble from one flick, posted to a Steam leaderboard.
 5. **Cosmetics:** more builder hats, bodies and banners; Steam Workshop for player-made hats later.
@@ -394,6 +394,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Friends' shelves | No room: shelves over the current backgrounds. Left wall, right wall, then a 5-shelf bookcase on the right, then the left; 6 per shelf, 72 max, later friends not added |
 | Friends on the shelf | Steam avatar face plus a default body, hair and accessory per friend; their custom builds aren't fetched |
 | Multiplayer room | Players walk their bobbleheads around; the room grows with the number of friends in the game |
+| Multiplayer connection | Steam invite (lobby; Steam relay when available, else the host's address) or a direct connection by address; up to 8 players; the host's background; walk, boop, fling, shared fireworks |
 | Desktop buddy | Button in the playground and a `--buddy` launch option; 560 × 680 frameless, see-through, always-on-top window in the bottom-right corner; drag the stand to move it; clicks pass through except the figure, gift boxes and controls |
 | Test flags | Removed from release builds; some return as in-game cheat codes, chosen before shipping |
 | Body proportions | People bodies drawn at 72% width; goat and unicorn keep full width |

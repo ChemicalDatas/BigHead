@@ -14,6 +14,10 @@ has its own Steam App ID.
 - **Collection.** New players own two options each of face shape, hair,
   eyes, mouth and body, and no accessories. Everything else shows in the
   builder as "(locked)" until it's unlocked.
+- **Play together.** "Play together" in the playground: invite a Steam friend,
+  host a room, or join one by address. Up to 8 bobbleheads in one room: walk
+  with A/D or the arrow keys, boop or fling anyone's head, and set off
+  fireworks everyone sees. Direct connections use UDP port 7777.
 - **Desktop buddy.** The playground's "Desktop buddy" button (or launching
   with `--buddy`) shrinks the game to a small see-through bobblehead in the
   corner of your desktop, always on top. Clicks pass through to your other
@@ -137,6 +141,8 @@ of them except `--buddy`. In the playground you can also type cheat codes:
 | `--drop-rate=N` | Drop chance per right-click, 0 to 1 (`--drop-rate=1` drops every click) |
 | `--buddy` | Start as the desktop buddy (stays in the shipped game as a launch option) |
 | `--store-screenshots` | Stage and save the Steam store screenshots |
+| `--host-room` | Host a shared room straight away |
+| `--join-room=IP[:PORT]` | Join a shared room straight away (`--join-room=127.0.0.1` for a second copy on the same computer) |
 | `--fast-timed-drops` | Desktop buddy timed drops every 5 to 10 seconds |
 | `--fireworks-launched=N` | Set your lifetime fireworks count (the Balloon rig can drop from 500, the Marionette from 1,000) |
 

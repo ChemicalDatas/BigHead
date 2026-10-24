@@ -153,6 +153,13 @@ func _build_buttons() -> void:
 	edit.pressed.connect(func() -> void: Game.go_to(Game.BUILDER_SCENE))
 	_buttons.add_child(edit)
 
+	var together := Button.new()
+	together.text = "Play together"
+	together.tooltip_text = "Share a room with friends: host one, join one, or invite a Steam friend"
+	together.add_theme_font_size_override("font_size", 20)
+	together.pressed.connect(_open_together)
+	_buttons.add_child(together)
+
 	var buddy := Button.new()
 	buddy.text = "Desktop buddy"
 	buddy.tooltip_text = "Shrink to a little bobblehead that sits on your desktop"
@@ -265,6 +272,74 @@ func _tick_timed_drops(delta: float) -> void:
 	_show_drop(result.kind, result.item_id, false, Vector2(spot.x, -40.0) if result.kind == DropRules.Kind.NEW_ITEM else _confetti.position)
 
 
+# --------------------------------------------------------------------------
+# Play together
+# --------------------------------------------------------------------------
+
+var _together: PanelContainer
+var _together_status: Label
+
+## Host a room, join one by address, or (with Steam) invite a friend.
+func _open_together() -> void:
+	if is_instance_valid(_together):
+		_together.queue_free()
+	_together = PanelContainer.new()
+	add_child(_together)
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 18)
+	_together.add_child(margin)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	margin.add_child(box)
+	var title := Label.new()
+	title.text = "Play together"
+	title.add_theme_font_size_override("font_size", 28)
+	box.add_child(title)
+	if Game.steam_available:
+		var invite := Button.new()
+		invite.text = "Invite a Steam friend"
+		invite.add_theme_font_size_override("font_size", 20)
+		invite.pressed.connect(Game.net.host_steam)
+		box.add_child(invite)
+	var host := Button.new()
+	host.text = "Host a room (direct connection)"
+	host.add_theme_font_size_override("font_size", 20)
+	host.pressed.connect(func() -> void: Game.net.host_direct())
+	box.add_child(host)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	box.add_child(row)
+	var address := LineEdit.new()
+	address.placeholder_text = "Host's address, e.g. 192.168.1.20"
+	address.custom_minimum_size = Vector2(320, 34)
+	address.add_theme_font_size_override("font_size", 18)
+	row.add_child(address)
+	var join := Button.new()
+	join.text = "Join"
+	join.add_theme_font_size_override("font_size", 20)
+	join.pressed.connect(func() -> void: Game.net.join_direct(address.text))
+	address.text_submitted.connect(func(t: String) -> void: Game.net.join_direct(t))
+	row.add_child(join)
+	_together_status = Label.new()
+	_together_status.add_theme_font_size_override("font_size", 16)
+	_together_status.add_theme_color_override("font_color", Color("#cfc6e0"))
+	_together_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_together_status.custom_minimum_size = Vector2(420, 0)
+	box.add_child(_together_status)
+	Game.net.status_changed.connect(func(t: String) -> void:
+		if is_instance_valid(_together_status):
+			_together_status.text = t)
+	var close := Button.new()
+	close.text = "Close"
+	close.add_theme_font_size_override("font_size", 18)
+	close.pressed.connect(func() -> void: _together.queue_free())
+	box.add_child(close)
+	_together.reset_size()
+	var view := get_viewport_rect().size
+	_together.position = (view - _together.size) * 0.5
+
+
 func _update_hint() -> void:
 	var rockets := Game.rockets_per_click()
 	var fireworks := "Right-click: fireworks"
@@ -327,6 +402,9 @@ func _enter_playground_directly() -> void:
 	if not _buddy:
 		_shelves.appear(true)
 	_playground = true
+	if Game.pending_toast != "":
+		_show_toast.call_deferred(Game.pending_toast)
+		Game.pending_toast = ""
 	if steam_face and profile.has_build() and profile.style.face_mode == SceneStyle.FaceMode.ALTERNATE:
 		_run_face_cycle()
 

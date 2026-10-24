@@ -256,6 +256,40 @@ X11, Wayland (KDE/Kinoite) and Windows, and couldn't be checked here.
 - [ ] Timed drops keep coming however many boxes are waiting
 - [ ] A timed-drop gift box on the desktop can be clicked even though the rest of the window lets clicks through
 
+## 7. Play together
+
+Status: **Built** (2026-10-24). Tested here with two copies of the game on
+one machine over a direct connection: joining, walking, boops, fireworks
+and leaving all worked. The Steam invite needs two Steam accounts on two
+machines (GodotSteam installed on both); on app 480 an invite only works
+while the friend's game is already running, since Steam would otherwise
+launch Spacewar.
+
+Two copies on one computer: run one with `--host-room` and the other with
+`--join-room=127.0.0.1`. Across two computers, the host's firewall has to let
+in UDP port 7777 (Fedora: `sudo firewall-cmd --add-port=7777/udp`).
+
+**Direct connection**
+
+- [ ] Playground → "Play together" → "Host a room": you're in a room showing "Hosting. Friends join at <address>"
+- [ ] On the other computer: "Play together", type that address, "Join": both see both bobbleheads with names
+- [ ] A / D or the arrow keys walk your bobblehead; it lurches when starting and stopping; the other screen follows smoothly
+- [ ] Clicking someone else's head boops it on both screens; dragging across it and letting go flings it
+- [ ] Right-click fireworks show on both screens (one rocket per player)
+- [ ] The room widens (the view zooms out) as a third and fourth player join; at 8 the room is full
+- [ ] Everyone sees the host's background
+- [ ] "Leave room" goes back to your playground; the others see "<name> left"
+- [ ] If the host leaves, everyone else goes back to their playground with "The host left the room."
+- [ ] A wrong address gives "Couldn't reach the host." and you stay in your playground
+
+**Steam invite**
+
+- [ ] "Play together" → "Invite a Steam friend" opens a room and the Steam invite overlay
+- [ ] The friend accepts (game running): they join the room, with your Steam avatars on your heads
+- [ ] "Join game" from the Steam friends list works too
+- [ ] With GodotSteam's MultiplayerPeer installed, it works across different homes with no port forwarding
+- [ ] Friends see "In a room full of Big Heads" as your status (after the App ID)
+
 ## Parallel track: Steam-ready prep
 
 Status: **Built** (2026-10-24). Mostly documents and assets in `steam/`;

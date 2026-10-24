@@ -62,6 +62,7 @@ page. The game sets `steam_display` to:
 | `#Status_Playing` | Being a Big Head | the playground |
 | `#Status_Customizing` | Building a bobblehead | Customize |
 | `#Status_Buddy` | Bobbling on the desktop | desktop buddy |
+| `#Status_Together` | In a room full of Big Heads | a shared room |
 
 Test it at https://steamcommunity.com/dev/testrichpresence while the game runs.
 
@@ -114,7 +115,14 @@ fill in `APP_ID`, `WINDOWS_DEPOT_ID` and `LINUX_DEPOT_ID` in
 
     steamcmd +login <account> +run_app_build /full/path/to/steam/steampipe/app_build.vdf +quit
 
-## 8. Before release
+## 8. Multiplayer
+
+- Install GodotSteam's MultiplayerPeer alongside GodotSteam so Steam invites
+  use Steam's relay (no port forwarding). Without it, invites still work but
+  fall back to a direct connection to the host's address.
+- Nothing to configure in Steamworks for lobbies; they work with the App ID.
+
+## 9. Before release
 
 - Release builds ignore every test flag except `--buddy` (checked on the
   Linux export). Nothing to remove by hand.
