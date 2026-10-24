@@ -38,7 +38,7 @@ godot --path . -- --reset --unlock-all
 | `--unlock-all` | Treat every catalog item as owned (step 1) |
 | `--reset-inventory` | Forget unlocked items and go back to the starting set (step 1) |
 | `--drop-rate=N` | Chance of a drop per right-click, 0 to 1, e.g. `--drop-rate=1` drops every click (step 2) |
-| `--fast-timed-drops` | Desktop buddy timed drops every few seconds instead of 60 to 90 minutes (step 5) |
+| `--fast-timed-drops` | Desktop buddy timed drops every few seconds instead of 60 to 90 minutes (step 6) |
 
 `--reset-inventory` and `--drop-rate` are proposed names; this file is updated
 if they change when the steps are built.
@@ -210,7 +210,15 @@ checks. Each pop prints `[rig] Balloon popped (<cause>)` in the terminal.
 - [ ] Face swaps, eyes and dizzy stars still work on the marionette
 - [ ] Level-Headed only counts once the puppet and head are both still
 
-## 5. Desktop buddy
+## 5. Room and shelf
+
+Status: **Not built yet**
+
+- [ ] With no background chosen, the playground is a room with a shelf on the wall
+- [ ] Choosing another background or uploading one replaces the room behind; the shelf stays
+- [ ] `--fake-friends=N` puts N friends' bobbleheads on the shelf, each with its own look that stays the same between launches
+
+## 6. Desktop buddy
 
 Status: **Not built yet**
 

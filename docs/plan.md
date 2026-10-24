@@ -157,16 +157,16 @@ Everything here builds and tests on app 480 while Steam partner verification run
 - [x] Balloon rig, with the Pop Goes the Head achievement
 - [x] Marionette rig: strings to the hands, or to the four leg tops on the goat and unicorn
 
-**5. Desktop buddy**
-
-- [ ] Transparent click-through window with the bobblehead; eyes follow the cursor where the platform allows
-- [ ] Timed drops: while the desktop buddy runs, a drop happens at a random time every 60 to 90 minutes, from the regular pool (no super-rares; owned items burst into confetti); timed drops pause while 12 gift boxes are waiting to be clicked
-
-**6. Room and shelf**
+**5. Room and shelf**
 
 - [ ] The default background becomes a room with a shelf on the wall
 - [ ] A custom background replaces the room's wall art; the shelf always stays
 - [ ] The shelf shows friends' bobbleheads (see Iteration 3, Friends shelf); before the App ID it's filled from `--fake-friends=N`
+
+**6. Desktop buddy**
+
+- [ ] Transparent click-through window with the bobblehead; eyes follow the cursor where the platform allows
+- [ ] Timed drops: while the desktop buddy runs, a drop happens at a random time every 60 to 90 minutes, from the regular pool (no super-rares; owned items burst into confetti); timed drops pause while 12 gift boxes are waiting to be clicked
 
 ### Parallel track: ready for 2B
 
@@ -363,7 +363,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Desktop buddy | In; no global click hooks |
 | No spoilers before the pop | Builder says "bobblehead", never "Big Head"; the banner sample shows only the name; the banner lands on the same beat as the pop |
 | Builder button | "Play" |
-| Before the App ID | Catalog and inventory, drops, content, rigs, desktop buddy, in that order; Steam-ready prep in parallel |
+| Before the App ID | Catalog and inventory, drops, content, rigs, room and shelf, desktop buddy, in that order; Steam-ready prep in parallel |
 | Customize Cancel | Cancel button; Esc cancels instead of quitting; built in roadmap step 1 |
 | Desktop buddy drops | Random time every 60 to 90 minutes while the buddy runs; regular pool, no super-rares; pauses at 12 waiting gift boxes |
 | Starting accessories | None; the first hat comes from a drop |
