@@ -241,6 +241,8 @@ func _configure_marionette() -> void:
 			attach.append(hand)
 			bar_points.append(Vector2(signf(hand.x) * maxf(r * 1.15, absf(hand.x)), 0))
 	_puppet.configure(attach, bar_points, Vector2(0, -(r * 2.8 + 40.0)))
+	# The head hangs from the middle of the bar, tied to the back of the body.
+	_puppet.configure_head(Vector2(0, -r * 0.92), r * 0.9, Vector2(0, 40))
 	_limb_swing.clear()
 	for i in attach.size():
 		_limb_swing.append(0.0)
@@ -250,19 +252,16 @@ func _marionette_physics(delta: float) -> void:
 	_configure_marionette()
 	if _bar_held:
 		_puppet.drag_target = get_local_mouse_position() - _bar_grab - _puppet.bar_rest
-	_puppet.step(delta)
-	_body_xform = Transform2D(_puppet.angle, _puppet.body)
-	# The head flops with the body: its spring neck feels the body's motion.
-	var push := _puppet.body_acceleration.rotated(-_puppet.angle).limit_length(6000.0)
-	bobble.offset_velocity -= push * delta * 0.6
-	bobble.angular_velocity -= (push.x * 0.0035 + clampf(_puppet.angular_acceleration, -200.0, 200.0) * 0.5) * delta
 	if bobble.dragging:
-		var mouse := _to_body_space(get_local_mouse_position())
+		# Dragging the head itself: it follows the cursor, strings permitting.
+		var mouse := get_local_mouse_position()
 		var instant := (mouse - _last_mouse) / maxf(delta, 0.0001)
 		_mouse_velocity = _mouse_velocity.lerp(instant, 0.5)
 		_last_mouse = mouse
-		bobble.update_drag(mouse - _grab_offset)
-	bobble.step(delta)
+		_puppet.head_dragging = true
+		_puppet.head_drag_target = mouse - _grab_offset
+	_puppet.step(delta)
+	_body_xform = Transform2D(_puppet.angle, _puppet.body)
 	_update_limb_swing(delta)
 
 
@@ -468,7 +467,11 @@ func _update_gaze(delta: float) -> void:
 	if look_at_cursor:
 		var r := radius()
 		var c := Vector2(0.0, -r * 0.92)
-		var in_head := (_to_body_space(_cursor_local()) - bobble.offset).rotated(-bobble.angle - _look_tilt) - c
+		var in_head: Vector2
+		if _puppet != null:
+			in_head = (_cursor_local() - _puppet.head).rotated(-_puppet.head_angle - _look_tilt)
+		else:
+			in_head = (_to_body_space(_cursor_local()) - bobble.offset).rotated(-bobble.angle - _look_tilt) - c
 		var dist := in_head.length()
 		if dist > 0.001:
 			# Saturates quickly: a cursor one head-radius away already gets ~70% of the range.
@@ -498,8 +501,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and _pressing and _press_on_head and not bobble.dragging:
 		if get_local_mouse_position().distance_to(_press_position) > DRAG_THRESHOLD:
 			# The head is grabbed where it was pressed: keep that point under the cursor.
-			_grab_offset = _to_body_space(_press_position) - bobble.offset
-			_last_mouse = _to_body_space(get_local_mouse_position())
+			if _puppet != null:
+				_grab_offset = _press_position - _puppet.head
+				_last_mouse = get_local_mouse_position()
+			else:
+				_grab_offset = _to_body_space(_press_position) - bobble.offset
+				_last_mouse = _to_body_space(get_local_mouse_position())
 			_mouse_velocity = Vector2.ZERO
 			bobble.begin_drag()
 
@@ -527,6 +534,8 @@ func _end_press() -> void:
 		return
 	if bobble.dragging:
 		bobble.end_drag(_mouse_velocity)
+		if _puppet != null:
+			_puppet.release_head(_mouse_velocity)
 		var speed := _mouse_velocity.length()
 		drag_released.emit(speed)
 		if is_balloon() and speed >= AchievementRules.WHIPLASH_SPEED:
@@ -536,13 +545,18 @@ func _end_press() -> void:
 	if is_balloon() and _balloon != Balloon.INFLATED:
 		return
 	var toward := get_local_mouse_position() - head_center()
-	bobble.nudge_toward(toward, 1.0)
+	if _puppet != null:
+		_puppet.nudge_head(toward, 1.0)
+	else:
+		bobble.nudge_toward(toward, 1.0)
 	clicked.emit(_press_on_head)
 
 
 ## Head centre in this node's local space, including the current bobble (and,
 ## on the marionette, where the body has been moved).
 func head_center() -> Vector2:
+	if _puppet != null:
+		return _puppet.head
 	return _body_xform * (bobble.offset + Vector2(0.0, -radius() * 0.92).rotated(bobble.angle))
 
 
@@ -632,19 +646,41 @@ func _draw_head_layers(c: Vector2, r: float, stars: bool) -> void:
 # --------------------------------------------------------------------------
 
 ## Body and stand are already drawn (moved by the puppet); this adds the
-## strings, the neck and head riding on the body, and the control bar.
+## strings, the rope tying the head to the body, the hanging head and the
+## control bar.
 func _draw_marionette(c: Vector2, r: float) -> void:
 	for i in _puppet.attach.size():
 		var end := _body_xform * _limb_end(i)
 		var from := _puppet.bar_point(i)
-		draw_line(from, end, OUTLINE, 3.0, true)
-		draw_line(from, end, STRING_COLOR, 1.4, true)
-	draw_set_transform_matrix(_body_xform)
-	_draw_neck()
-	draw_set_transform_matrix(_body_xform * Transform2D(bobble.angle + _look_tilt, bobble.offset))
+		_draw_string(from, end)
+	_draw_string(_puppet.bar_center(), _puppet.head_string_end())
+	_draw_tether()
+	# Head space puts the head's centre at c; move that onto the hanging head.
+	draw_set_transform_matrix(Transform2D(_puppet.head_angle + _look_tilt, _puppet.head) * Transform2D(0.0, -c))
 	_draw_head_layers(c, r, true)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	_draw_control_bar()
+
+
+func _draw_string(from: Vector2, to: Vector2) -> void:
+	draw_line(from, to, OUTLINE, 3.0, true)
+	draw_line(from, to, STRING_COLOR, 1.4, true)
+
+
+## The rope from the back of the body up to the middle of the head (drawn
+## behind the head, so it disappears under it). It sags when it's slack.
+func _draw_tether() -> void:
+	var from := _body_xform * _puppet.tether_attach
+	var to := _puppet.head
+	var gap := from.distance_to(to)
+	var slack := sqrt(maxf(_puppet.tether_length * _puppet.tether_length - gap * gap, 0.0)) * 0.5
+	var mid := (from + to) * 0.5 + Vector2(0, slack)
+	var pts := PackedVector2Array()
+	for k in 13:
+		var t := float(k) / 12.0
+		pts.append(from.lerp(mid, t).lerp(mid.lerp(to, t), t))
+	draw_polyline(pts, OUTLINE, 6.0, true)
+	draw_polyline(pts, Color("#c9a26b"), 3.5, true)
 
 
 ## Where string i ties on, after its arm or leg has swung.

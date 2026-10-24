@@ -387,6 +387,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Rainbow mane | Fixed rainbow colors; the hair color picker greys out |
 | Rig unlocks | Super-rare drops gated by lifetime fireworks: Balloon after 500, Marionette after 1,000 |
 | Marionette strings | Hands on people; the four leg tops on the goat and unicorn |
+| Marionette head | Hangs from the middle of the bar on its own string; a short rope ties the middle of the head to the back of the body (no spring neck on this rig) |
 | Balloon pops | Whiplash fling, touching the floor, or a rocket hit; the tear spreads from the hit point, a scrap is left, it reinflates after 3 s |
 | Animal faces | One standalone face per animal body style (4 unicorn, 4 goat), colored like that body, with its own muzzle and mouth; the mouth picker doesn't apply. Unicorn faces super-rare, goat faces common |
 | Confetti | Paper pieces (strips, dots, stars, hearts, spirals) that flip and flutter, drawn in front of fireworks |

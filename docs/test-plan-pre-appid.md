@@ -202,6 +202,7 @@ checks. Each pop prints `[rig] Balloon popped (<cause>)` in the terminal.
 
 - [ ] Without `--unlock-all`, Rig shows "Marionette (locked)"; with `--fireworks-launched=999` it never drops, from 1000 it can
 - [ ] A wooden control bar sits above the tallest hat, with strings to both hands
+- [ ] The head hangs from the middle of the bar on its own string, with a rope from the middle of the head to the back of the body (no spring neck)
 - [ ] Goat and unicorn: four strings, one to the top of each leg
 - [ ] At rest the strings are slightly slack: arms hang, the body sits on the stand
 - [ ] Dragging the bar up lifts the body off the stand; the arms rise along the strings; animal legs hang straight down

@@ -9,8 +9,10 @@ extends RefCounted
 ## position-based dynamics: move freely, then pull each taut string back to
 ## length, then derive velocities from how far things actually moved.
 ##
-## The head isn't simulated here: HeadView feeds `body_acceleration` into the
-## head's spring neck so it flops with the motion.
+## The head hangs too: its own string runs from the middle of the bar to the
+## top of the head, and a short rope ties the middle of the head to the back
+## of the body (no spring neck on this rig). The head swings on its string,
+## and a yank on either one tugs the other along the rope.
 ##
 ## All points are in HeadView's local space (origin = neck pivot at rest).
 
@@ -39,6 +41,18 @@ var _angular_velocity := 0.0
 var body_acceleration := Vector2.ZERO
 var angular_acceleration := 0.0
 
+## The head: its centre, how it's turned, and the strings that hold it.
+var head := Vector2.ZERO
+var head_angle := 0.0
+var head_top := 100.0           ## centre to where the head string ties on
+var head_string_length := 150.0
+var tether_attach := Vector2(0, 40)   ## back of the body (body space)
+var tether_length := 160.0
+var head_dragging := false
+var head_drag_target := Vector2.ZERO
+var _head_velocity := Vector2.ZERO
+var _head_spin := 0.0
+
 
 ## Sets up the strings; lengths are the resting distances plus a little slack
 ## (so at rest the arms hang and the body sits on its stand).
@@ -49,6 +63,34 @@ func configure(attach_points: Array[Vector2], bar_attach: Array[Vector2], rest: 
 	string_lengths.clear()
 	for i in attach.size():
 		string_lengths.append((rest + bar_points[i]).distance_to(attach[i]) * 1.04)
+
+
+## Sets up the head: where its centre rests, how far its top is from the
+## centre, and the back of the body the rope ties to.
+func configure_head(rest_center: Vector2, top: float, attach_point: Vector2) -> void:
+	head = rest_center
+	head_angle = 0.0
+	head_top = top
+	tether_attach = attach_point
+	head_string_length = bar_rest.distance_to(rest_center + Vector2(0, -top))
+	tether_length = rest_center.distance_to(attach_point) * 1.08
+
+
+## Where the head string ties onto the head (its top, turned with the head).
+func head_string_end() -> Vector2:
+	return head + Vector2(0, -head_top).rotated(head_angle)
+
+
+func nudge_head(direction: Vector2, strength := 1.0) -> void:
+	var d := direction.normalized() if direction.length() > 0.001 else Vector2.UP
+	_head_velocity += d * 420.0 * strength
+	_head_spin += d.x * 4.0 * strength
+
+
+func release_head(velocity: Vector2) -> void:
+	head_dragging = false
+	_head_velocity = velocity.limit_length(3000.0) * 0.6
+	_head_spin += clampf(velocity.x * 0.004, -8.0, 8.0)
 
 
 func bar_center() -> Vector2:
@@ -72,6 +114,14 @@ func step(delta: float) -> void:
 	var old_angle := angle
 	var old_velocity := _body_velocity
 	var old_spin := _angular_velocity
+	var old_head := head
+	if head_dragging:
+		var w := TAU * 5.0
+		_head_velocity += (-w * w * (head - head_drag_target) - 2.0 * 0.8 * w * _head_velocity) * delta
+	else:
+		_head_velocity += Vector2(0, GRAVITY) * delta
+	_head_velocity *= 0.992
+	head += _head_velocity * delta
 
 	_body_velocity += Vector2(0, GRAVITY) * delta
 	_body_velocity *= 0.995
@@ -82,6 +132,7 @@ func step(delta: float) -> void:
 	for _k in ITERATIONS:
 		for i in attach.size():
 			_pull_string(i)
+		_hold_head()
 		_rest_on_stand()
 
 	_body_velocity = (body - old_body) / delta
@@ -93,6 +144,13 @@ func step(delta: float) -> void:
 		_angular_velocity *= 0.6
 	body_acceleration = (_body_velocity - old_velocity) / delta
 	angular_acceleration = (_angular_velocity - old_spin) / delta
+	_head_velocity = (head - old_head) / delta
+	# The head turns to hang from its string, and keeps a little swing.
+	var up := bar_center() - head_string_end()
+	var hang := clampf(atan2(up.x, -up.y), -1.0, 1.0)
+	var w := TAU * 1.2
+	_head_spin += (-w * w * (head_angle - hang) - 2.0 * 0.25 * w * _head_spin) * delta
+	head_angle = clampf(head_angle + _head_spin * delta, -1.2, 1.2)
 
 
 func _step_bar(delta: float) -> void:
@@ -124,6 +182,23 @@ func _pull_string(i: int) -> void:
 	angle = clampf(angle, -0.9, 0.9)
 
 
+## The head string can't stretch (unless the head is being dragged); the rope
+## to the body can't either, and pulls the body a little when it's taut.
+func _hold_head() -> void:
+	if not head_dragging:
+		var from_bar := head_string_end() - bar_center()
+		var dist := from_bar.length()
+		if dist > head_string_length and dist > 0.001:
+			head -= from_bar / dist * (dist - head_string_length)
+	var anchor := to_world(tether_attach)
+	var from_body := head - anchor
+	var reach := from_body.length()
+	if reach > tether_length and reach > 0.001:
+		var correction := from_body / reach * (reach - tether_length)
+		head -= correction * 0.7
+		body += correction * 0.3
+
+
 func _rest_on_stand() -> void:
 	if body.y > 0.0:
 		body.y = 0.0
@@ -136,8 +211,9 @@ func tension(i: int) -> float:
 
 
 func is_resting() -> bool:
-	return not dragging and bar.length() < 1.0 and bar_velocity.length() < 3.0 \
-		and body.length() < 0.5 and _body_velocity.length() < 3.0
+	return not dragging and not head_dragging and bar.length() < 1.0 and bar_velocity.length() < 3.0 \
+		and body.length() < 0.5 and _body_velocity.length() < 3.0 \
+		and _head_velocity.length() < 3.0 and absf(_head_spin) < 0.05
 
 
 func begin_drag() -> void:
