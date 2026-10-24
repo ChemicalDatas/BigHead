@@ -123,6 +123,7 @@ Run with `--unlock-all` to see everything.
 - [ ] A dropped style is named with its number, e.g. "New: Wizard hat #3!"
 - [ ] Variants of one item keep the same shape and differ only by colors and patterns
 - [ ] Variants look right with every face shape and with head size at 80% and 150%
+- [ ] Every hair style fits every face shape, animal faces included: caps sit flush, spikes grow from the head, the mop follows the face (fixed 2026-10-24; hair now follows each face's outline)
 
 **Wizard hat**
 

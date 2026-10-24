@@ -1215,21 +1215,75 @@ func _draw_mouth(c: Vector2, r: float, s: Vector2) -> void:
 
 
 func _draw_hair_back(c: Vector2, r: float) -> void:
-	if build.hair == 3:  # Mop: a big mass behind the face
-		draw_circle(c + Vector2(0, -r * 0.08), r * 1.06, build.hair_color)
-		draw_arc(c + Vector2(0, -r * 0.08), r * 1.06, 0, TAU, 48, OUTLINE, 4.0, true)
+	if build.hair == 3:  # Mop: a big mass behind the face, following its shape
+		var mass := PackedVector2Array()
+		for i in 48:
+			var a := TAU * float(i) / 48.0
+			mass.append(c + Vector2(0, -r * 0.08) + Vector2.from_angle(a) * _hair_r(a, r, 1.06))
+		draw_colored_polygon(mass, build.hair_color)
+		draw_polyline(_closed(mass), OUTLINE, 4.0, true)
 	elif build.hair == RAINBOW_HAIR:  # Rainbow mane: flows down the right side
-		_draw_rainbow_band(c, r * 0.96, r * 0.055, -PI * 0.62, PI * 0.32)
+		_draw_rainbow_band(c, r, 0.96, r * 0.055, -PI * 0.62, PI * 0.32)
 
 
-## Six rainbow stripes following an arc, from `inner` outward, each `width`
-## thick. Ignores the hair color: the rainbow is the point.
-func _draw_rainbow_band(c: Vector2, inner: float, width: float, a0: float, a1: float) -> void:
+## Six rainbow stripes following the face outline, starting `inner_k` out
+## (as on the round face) and each `width` thick. Ignores the hair color: the
+## rainbow is the point.
+func _draw_rainbow_band(c: Vector2, r: float, inner_k: float, width: float, a0: float, a1: float) -> void:
 	var n := RAINBOW.size()
-	var mid := inner + width * n * 0.5
-	draw_arc(c, mid, a0, a1, 40, OUTLINE, width * n + 6.0, true)
+	var steps := 40
+	var stripes: Array[PackedVector2Array] = []
 	for i in n:
-		draw_arc(c, inner + width * (n - 1 - i + 0.5), a0, a1, 40, RAINBOW[i], width + 0.8, true)
+		stripes.append(PackedVector2Array())
+	var middle := PackedVector2Array()
+	for k in steps + 1:
+		var a := lerpf(a0, a1, float(k) / steps)
+		var dir := Vector2.from_angle(a)
+		var base := _hair_r(a, r, inner_k)
+		middle.append(c + dir * (base + width * n * 0.5))
+		for i in n:
+			stripes[i].append(c + dir * (base + width * (n - 1 - i + 0.5)))
+	draw_polyline(middle, OUTLINE, width * n + 6.0, true)
+	for i in n:
+		draw_polyline(stripes[i], RAINBOW[i], width + 0.8, true)
+
+
+# --------------------------------------------------------------------------
+# Hair follows the face's own outline
+# --------------------------------------------------------------------------
+
+const EDGE_STEPS := 90
+## Distance from the head centre to the face's edge, every 4 degrees, for the
+## current face shape and size (rebuilt when either changes).
+var _edges := PackedFloat32Array()
+var _edges_key := ""
+
+
+## How far hair goes out at angle `a`: `k` is that distance as a fraction of r
+## on the Round face (radius 0.92 r), scaled to wherever this face's edge is.
+## So a cap drawn for the Round face hugs an Oval, Egg or animal face too.
+func _hair_r(a: float, r: float, k: float) -> float:
+	return _face_edge(a, r) * k / 0.92
+
+
+func _face_edge(a: float, r: float) -> float:
+	var key := "%d/%.2f" % [build.face_shape, r]
+	if key != _edges_key:
+		_edges_key = key
+		_edges.resize(EDGE_STEPS)
+		var outline := _face_polygon(build.face_shape, Vector2.ZERO, r)
+		for k in EDGE_STEPS:
+			var ray := Vector2.from_angle(TAU * float(k) / EDGE_STEPS) * r * 3.0
+			var best := r * 0.92
+			for i in outline.size():
+				var hit: Variant = Geometry2D.segment_intersects_segment(Vector2.ZERO, ray, outline[i], outline[(i + 1) % outline.size()])
+				if hit != null:
+					best = (hit as Vector2).length()
+					break
+			_edges[k] = best
+	var f := fposmod(a, TAU) / TAU * EDGE_STEPS
+	var i0 := int(f) % EDGE_STEPS
+	return lerpf(_edges[i0], _edges[(i0 + 1) % EDGE_STEPS], f - floorf(f))
 
 
 ## Hats sit on top of the head, so hair that would stick up through them is
@@ -1243,16 +1297,16 @@ func _draw_hair_front(c: Vector2, r: float) -> void:
 	var hat := _wearing_hat()
 	match build.hair:
 		1:  # Buzz
-			_draw_cap(c, r * 0.99, r * 0.84, PI * 1.08, PI * 1.92)
+			_draw_cap(c, r, 0.99, 0.84, PI * 1.08, PI * 1.92)
 		2:  # Spiky
-			_draw_cap(c, r * 0.99, r * 0.82, PI * 1.05, PI * 1.95)
+			_draw_cap(c, r, 0.99, 0.82, PI * 1.05, PI * 1.95)
 			for i in range(7):
 				var a := lerpf(PI * 1.12, PI * 1.88, float(i) / 6.0)
 				if hat and a > PI * 1.3 and a < PI * 1.7:
 					continue  # the hat covers the top spikes
 				var dir := Vector2.from_angle(a)
 				var tangent := dir.orthogonal()
-				var root := c + dir * r * 0.9
+				var root := c + dir * _hair_r(a, r, 0.9)
 				var spike := PackedVector2Array([root + tangent * r * 0.12, root + dir * r * 0.42, root - tangent * r * 0.12])
 				draw_colored_polygon(spike, build.hair_color)
 				draw_polyline(spike, OUTLINE, 3.0, true)
@@ -1260,29 +1314,29 @@ func _draw_hair_front(c: Vector2, r: float) -> void:
 			var pts := PackedVector2Array()
 			for i in range(25):
 				var a := lerpf(PI * 1.0, PI * 2.0, float(i) / 24.0)
-				pts.append(c + Vector2.from_angle(a) * r * 1.0)
+				pts.append(c + Vector2.from_angle(a) * _hair_r(a, r, 1.0))
 			for i in range(24, -1, -1):
 				var a := lerpf(PI * 1.0, PI * 2.0, float(i) / 24.0)
 				var wave := 0.62 + 0.08 * sin(float(i) * 1.6)
-				pts.append(c + Vector2.from_angle(a) * r * wave + Vector2(0, r * 0.12))
+				pts.append(c + Vector2.from_angle(a) * _hair_r(a, r, wave) + Vector2(0, r * 0.12))
 			draw_colored_polygon(pts, build.hair_color)
 			draw_polyline(_closed(pts), OUTLINE, 3.0, true)
 		4:  # Mohawk
 			if hat:
-				# Tucked under the hat: only a red stripe of crest shows below the brim.
-				_draw_cap(c, r * 0.99, r * 0.86, PI * 1.38, PI * 1.62)
+				# Tucked under the hat: only a stripe of crest shows below the brim.
+				_draw_cap(c, r, 0.99, 0.86, PI * 1.38, PI * 1.62)
 				return
 			var pts := PackedVector2Array()
 			for i in range(7):
 				var a := lerpf(PI * 1.4, PI * 1.6, float(i) / 6.0)
 				var reach := 1.55 if i % 2 == 1 else 1.2
-				pts.append(c + Vector2.from_angle(a) * r * reach)
-			pts.append(c + Vector2.from_angle(PI * 1.6) * r * 0.8)
-			pts.append(c + Vector2.from_angle(PI * 1.4) * r * 0.8)
+				pts.append(c + Vector2.from_angle(a) * _hair_r(a, r, reach))
+			pts.append(c + Vector2.from_angle(PI * 1.6) * _hair_r(PI * 1.6, r, 0.8))
+			pts.append(c + Vector2.from_angle(PI * 1.4) * _hair_r(PI * 1.4, r, 0.8))
 			draw_colored_polygon(pts, build.hair_color)
 			draw_polyline(_closed(pts), OUTLINE, 3.0, true)
 		RAINBOW_HAIR:  # Rainbow fringe across the top of the head
-			_draw_rainbow_band(c, r * 0.8, r * 0.033, PI * 1.06, PI * 1.94)
+			_draw_rainbow_band(c, r, 0.8, r * 0.033, PI * 1.06, PI * 1.94)
 
 
 func _draw_accessory(c: Vector2, r: float) -> void:
@@ -1413,13 +1467,17 @@ func _face_polygon(shape: int, c: Vector2, r: float) -> PackedVector2Array:
 	return pts
 
 
-func _draw_cap(c: Vector2, outer: float, inner: float, a0: float, a1: float) -> void:
+## A band of hair between two distances from the centre (given as on the
+## Round face; see _hair_r), from angle a0 to a1.
+func _draw_cap(c: Vector2, r: float, outer_k: float, inner_k: float, a0: float, a1: float) -> void:
 	var pts := PackedVector2Array()
 	var n := 24
 	for i in range(n + 1):
-		pts.append(c + Vector2.from_angle(lerpf(a0, a1, float(i) / n)) * outer)
+		var a := lerpf(a0, a1, float(i) / n)
+		pts.append(c + Vector2.from_angle(a) * _hair_r(a, r, outer_k))
 	for i in range(n, -1, -1):
-		pts.append(c + Vector2.from_angle(lerpf(a0, a1, float(i) / n)) * inner)
+		var a := lerpf(a0, a1, float(i) / n)
+		pts.append(c + Vector2.from_angle(a) * _hair_r(a, r, inner_k))
 	draw_colored_polygon(pts, build.hair_color)
 	draw_polyline(_closed(pts), OUTLINE, 3.0, true)
 
