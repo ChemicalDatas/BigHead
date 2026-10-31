@@ -378,6 +378,7 @@ Only "Big Head" ships in iteration 1; the rest are candidates for iterations 2 a
 | Before the App ID | Catalog and inventory, drops, content, rigs, friends' shelves, desktop buddy, in that order; Steam-ready prep in parallel |
 | Customize Cancel | Cancel button; Esc cancels instead of quitting; built in roadmap step 1 |
 | Desktop buddy drops | Random time every 60 to 90 minutes while the buddy runs; regular pool, no super-rares; no limit on waiting gift boxes |
+| Rare announcements | Opening a box: rare (unicorn faces, mane, body styles, horn #1) shows a gold "RARE!" with gold sparkles; ultra rare (the rigs and the multiplayer-only horns) waves "ULTRA RARE!" in rainbow letters for a couple of seconds with rainbow sparkles and a bigger confetti burst |
 | Gift box piles | Unlimited (2026-10-24): front row on the floor, rows behind (higher, smaller, darker, brick-offset), then stacked up; the front-most box under the cursor opens |
 | Starting accessories | None; the first hat comes from a drop |
 | Starting set | Round and Oval faces, Buzz and Spiky hair, Dots and Googly eyes, Smile and Grin mouths, Suit and T-shirt bodies |

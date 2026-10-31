@@ -138,6 +138,20 @@ static func all_ids() -> Array[String]:
 	return ids
 
 
+## How an item is announced when its gift box is opened:
+##   RARE        the super-rares except the rigs (the unicorn set): gold sparkle
+##   ULTRA_RARE  the rigs and the multiplayer-only items: rainbow text
+enum Tier { COMMON, RARE, ULTRA_RARE }
+
+
+static func tier(id: String) -> Tier:
+	if id.begins_with("rig/") or rarity(id) == Rarity.MULTIPLAYER:
+		return Tier.ULTRA_RARE
+	if rarity(id) == Rarity.SUPER_RARE:
+		return Tier.RARE
+	return Tier.COMMON
+
+
 static func rarity(id: String) -> Rarity:
 	if id in SUPER_RARE_ITEMS:
 		return Rarity.SUPER_RARE

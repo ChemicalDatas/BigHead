@@ -93,6 +93,9 @@ without the flag to check normal rarity.
 - [ ] A right-click rolls once for a drop, however many rockets launch (`--fake-friends=19` doesn't drop 20 items)
 - [ ] A new item falls as a gift box and lands beside the bobblehead's stand, not on it or on other boxes
 - [ ] Clicking a box opens it, adds the item, and shows "New: <item>!" under the banner
+- [ ] A rare item (any unicorn face, the mane, a unicorn body, horn #1) adds a gold "RARE!" with gold sparkles over the box and the text
+- [ ] An ultra rare item (Balloon or Marionette rig, horns #2-#4) waves "ULTRA RARE!" in rainbow letters for about 2 seconds, with rainbow sparkles and extra confetti
+- [ ] Regular items get neither
 - [ ] Clicking a box doesn't also nudge the head
 - [ ] An item you already own bursts into confetti instead of a gift box
 - [ ] An unclicked gift box stays on screen until you quit, and is gone on the next launch

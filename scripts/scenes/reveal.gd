@@ -656,8 +656,58 @@ func _restore_waiting_gifts() -> void:
 
 func _on_gift_opened(item_id: String, box: GiftBox) -> void:
 	var is_new := Game.open_gift(item_id)
-	_burst_confetti(box.global_position + Vector2(0, -30), 50)
+	var tier := Catalog.tier(item_id)
+	var at := box.global_position + Vector2(0, -30)
+	_burst_confetti(at, 120 if tier == Catalog.Tier.ULTRA_RARE else 50)
 	_show_toast(("New: %s!" if is_new else "Already yours: %s") % Catalog.display_name(item_id))
+	if tier != Catalog.Tier.COMMON:
+		_announce_tier(tier, at)
+
+
+## Rare: a gold "RARE!" with sparkles over the box and the toast.
+## Ultra rare: "ULTRA RARE!" in waving rainbow letters for a couple of
+## seconds, rainbow sparkles all around.
+func _announce_tier(tier: Catalog.Tier, at: Vector2) -> void:
+	var ultra := tier == Catalog.Tier.ULTRA_RARE
+	var title := RichTextLabel.new()
+	title.bbcode_enabled = true
+	title.fit_content = true
+	title.autowrap_mode = TextServer.AUTOWRAP_OFF
+	title.scroll_active = false
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var size := (26 if _buddy else 46) if ultra else (22 if _buddy else 38)
+	title.add_theme_font_size_override("normal_font_size", size)
+	title.add_theme_color_override("font_outline_color", Color("#2a1d17"))
+	title.add_theme_constant_override("outline_size", 10)
+	if ultra:
+		title.text = "[wave amp=40 freq=5][rainbow freq=1.0 sat=0.85 val=1.0]ULTRA RARE![/rainbow][/wave]"
+	else:
+		title.text = "[wave amp=18 freq=4][color=#ffd84a]RARE![/color][/wave]"
+	title.z_index = 30
+	add_child(title)
+	title.reset_size()
+	var view := get_viewport_rect().size
+	# Just under the "New: ..." line, clear of the banner.
+	var below := _toast.position.y + _toast.size.y + 2.0 if is_instance_valid(_toast) else 140.0
+	title.position = Vector2((view.x - title.size.x) * 0.5, below)
+	var sparkle_box := Sparkles.new()
+	sparkle_box.rainbow = ultra
+	sparkle_box.area = Rect2(-70, -70, 140, 110)
+	sparkle_box.position = at
+	sparkle_box.count = 22 if ultra else 12
+	sparkle_box.seconds = 2.6 if ultra else 1.8
+	_drops.add_child(sparkle_box)
+	var sparkle_text := Sparkles.new()
+	sparkle_text.rainbow = ultra
+	sparkle_text.area = Rect2(title.position - Vector2(30, 10), title.size + Vector2(60, 20))
+	sparkle_text.count = 18 if ultra else 10
+	sparkle_text.seconds = 2.6 if ultra else 1.8
+	add_child(sparkle_text)
+	var tween := title.create_tween()
+	tween.tween_interval(2.4 if ultra else 1.6)
+	tween.tween_property(title, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(title.queue_free)
+	print("[drops] %s!" % ("ULTRA RARE" if ultra else "Rare"))
 
 
 func _burst_confetti(at: Vector2, amount: int) -> void:
