@@ -22,16 +22,40 @@ has its own Steam App ID.
   with `--buddy`) shrinks the game to a small see-through bobblehead in the
   corner of your desktop, always on top. Clicks pass through to your other
   apps except on the figure. Drag the stand to move it; "Full game" brings the
-  window back. While it runs, a drop falls every 60 to 90 minutes (no
-  super-rares; unopened boxes pile up beside it).
+  window back. While it runs, a drop falls every 1 to 2.5 minutes: special
+  effects, rare and ultra-rare items, and any regular item you're missing.
+  Drops are timed on the wall clock, so a locked screen still earns them
+  (they all land on the pile when the window runs again, up to 12 hours'
+  worth). Unopened boxes pile up beside it.
+  - *Idle acts*: left alone for a few minutes, the buddy yawns, nods off,
+    feeds chickens, gets caught in a shooting-star storm, plays a handheld
+    game, types on a laptop, has a sandwich, steps out a door and back,
+    weathers a rainstorm (umbrella or raincoat), blows bubbles or reads.
+    Goats sometimes split in two and the twin hops off screen (that one
+    happens in the full game too). Any click or firework interrupts an act.
 - **Friends' shelves.** Friends who have Big Head stand on shelves on the
   wall as little bobbleheads with their Steam avatar as the face. Click one
   to make it wobble; hover for the name. Up to 72 (two wall shelves, then a
   bookcase on each side). `--fake-friends=N` fills them for testing.
-- **Drops.** Each right-click in the playground has a 1 in 20 chance of a
-  drop. A new item falls as a gift box; click it to unlock the item. An item
-  you already own bursts into confetti instead. Unclicked boxes are lost when
-  you quit.
+- **Drops.** Every rocket has a chance to drop (18%), so friends' rockets
+  and barrages drop more. A new item falls as a gift box where the rocket
+  burst; click it to unlock the item. An item you already own bursts into
+  confetti instead; items you don't own yet are 3x as likely to be picked.
+  Unclicked boxes are lost when you quit. Where things drop:
+
+  | | Playground | Shared room | Desktop buddy |
+  | --- | --- | --- | --- |
+  | Regular items | yes | yes | yes |
+  | Rare (unicorn set) and ultra rare (rigs) | | yes | yes |
+  | Unicorn horns #2-#4 | | yes | |
+  | Special effects | | | yes |
+
+  Tuned so about 4 hours of play, split between the three, collects
+  everything on average (see `DropRules`).
+- **Special effects.** Shooting stars, Rainbow, Ripple, Swirl, Aurora,
+  Snowfall, Disco and Kaleidoscope. The desktop buddy finds them; the
+  middle mouse button plays the next one you own in the full game
+  (playground or shared room; only you see it).
 - **Builder tabs**
   - *Head*: face shape, skin color, hair, hair color, eyes, mouth, accessory
     (Glasses, Party hat, Crown, Goat horns, Wizard hat) and its Style, and a
@@ -41,11 +65,11 @@ has its own Steam App ID.
     on four legs.
   - Animal faces: four unicorn and four goat faces, one matching each body
     style, with their own muzzle and mouth.
-  - The super-rare unicorn set (faces, Rainbow mane, body, horn) comes from a
-    separate 1-in-500 roll. Unicorn horns #2-#4 are multiplayer-only.
+  - The rare unicorn set (faces, Rainbow mane, body, horn) drops in shared
+    rooms and for the desktop buddy. Unicorn horns #2-#4 are multiplayer-only.
   - *Rig*: Bobble (the spring neck), Balloon or Marionette. The rigs join
-    the super-rare roll after 500 (Balloon) and 1,000 (Marionette)
-    fireworks in total. The Balloon head floats on a string from the hand
+    rare drops after 200 (Balloon) and 400 (Marionette) fireworks in
+    total. The Balloon head floats on a string from the hand
     and pops on a whiplash fling, the floor or a rocket hit, then
     reinflates. The Marionette hangs from a control bar you drag: strings to
     the hands (or an animal's four legs) lift and swing it, and the head
@@ -126,8 +150,8 @@ Editor → Run → Main Run Args.
 
 They only work in the editor and debug builds: a release export ignores all
 of them except `--buddy`. In the playground you can also type cheat codes:
-`confetti`, `party` and `dizzy` (all builds), and `bighead`, `fastfaces` and
-`dropall` (debug only). They never count toward achievements.
+`confetti`, `party` and `dizzy` (all builds), and `bighead`, `fastfaces`,
+`dropall` and `act` (debug only; `act` starts an idle act now). They never count toward achievements.
 
 | Flag | Effect |
 | --- | --- |
@@ -138,13 +162,14 @@ of them except `--buddy`. In the playground you can also type cheat codes:
 | `--fast-faces` | Run the face swap cycle 10x faster for testing |
 | `--unlock-all` | Treat every item as owned for this run (nothing is saved) |
 | `--reset-inventory` | Forget unlocked items; back to the starting set |
-| `--drop-rate=N` | Drop chance per right-click, 0 to 1 (`--drop-rate=1` drops every click) |
+| `--drop-rate=N` | Regular drop chance per rocket, 0 to 1 (`--drop-rate=1` drops every rocket) |
 | `--buddy` | Start as the desktop buddy (stays in the shipped game as a launch option) |
 | `--store-screenshots` | Stage and save the Steam store screenshots |
 | `--host-room` | Host a shared room straight away |
 | `--join-room=IP[:PORT]` | Join a shared room straight away (`--join-room=127.0.0.1` for a second copy on the same computer) |
-| `--fast-timed-drops` | Desktop buddy timed drops every 5 to 10 seconds |
-| `--fireworks-launched=N` | Set your lifetime fireworks count (the Balloon rig can drop from 500, the Marionette from 1,000) |
+| `--fast-timed-drops` | Desktop buddy timed drops every 4 to 10 seconds |
+| `--fast-acts` | Desktop buddy idle acts every few seconds |
+| `--fireworks-launched=N` | Set your lifetime fireworks count (the Balloon rig can drop from 200, the Marionette from 400) |
 
 Example: `godot --path . -- --reset --fake-friends=19`
 

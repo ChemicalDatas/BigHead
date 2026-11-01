@@ -50,7 +50,7 @@ To redraw the icons after changing the art: `godot --path . --resolution 1280x96
 | clicks | INT | Client | yes | 0 | Head boops |
 | fireworks | INT | Client | yes | 0 | Fireworks launched |
 
-`fireworks` also gates the rigs (Balloon from 500, Marionette from 1,000).
+`fireworks` also gates the rigs (Balloon from 200, Marionette from 400).
 
 ## 4. Rich Presence
 

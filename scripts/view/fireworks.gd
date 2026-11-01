@@ -4,6 +4,10 @@ extends Node2D
 ## CPU particles: they behave the same on every renderer and GPU.
 
 const MAX_ROCKETS := 80
+
+## A rocket burst at `at` (global). `counted` is the launch's flag: false for
+## cheat barrages and other players' rockets, which never drop items.
+signal rocket_burst(at: Vector2, counted: bool)
 const COLORS: Array[Color] = [
 	Color("#ff5e5e"), Color("#ffd166"), Color("#06d6a0"), Color("#4cc9f0"),
 	Color("#c77dff"), Color("#ff7eb6"), Color("#ffffff"),
@@ -14,7 +18,8 @@ var _active := 0
 
 ## Launches `count` rockets aimed around `target`, slightly staggered.
 ## Returns how many actually launched (capped so the screen stays readable).
-func launch(target: Vector2, count: int) -> int:
+## Each burst emits `rocket_burst` with `counted`.
+func launch(target: Vector2, count: int, counted := true) -> int:
 	var launched := 0
 	for i in range(count):
 		if _active >= MAX_ROCKETS:
@@ -22,14 +27,14 @@ func launch(target: Vector2, count: int) -> int:
 		var spread := 0.0 if i == 0 else 40.0 + 22.0 * sqrt(float(i))
 		var aim := target + Vector2.from_angle(randf() * TAU) * spread * randf_range(0.5, 1.0)
 		var delay := minf(float(i) * 0.05, 1.2)
-		_launch_one(aim, delay)
+		_launch_one(aim, delay, counted)
 		launched += 1
 	if count > 1:
 		_show_multiplier(target, count)
 	return launched
 
 
-func _launch_one(aim: Vector2, delay: float) -> void:
+func _launch_one(aim: Vector2, delay: float, counted: bool) -> void:
 	_active += 1
 	var view := get_viewport_rect().size
 	var rocket := Node2D.new()
@@ -62,7 +67,8 @@ func _launch_one(aim: Vector2, delay: float) -> void:
 	tween.tween_callback(func() -> void:
 		rocket.set_meta("flying", false)
 		trail.emitting = false
-		_burst(aim, color))
+		_burst(aim, color)
+		rocket_burst.emit(to_global(aim), counted))
 	tween.tween_interval(1.8)
 	tween.tween_callback(func() -> void:
 		_active -= 1

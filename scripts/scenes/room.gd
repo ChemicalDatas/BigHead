@@ -10,6 +10,10 @@ extends Control
 ## about 20 times a second; other players' heads just show what arrives.
 ## Booping or flinging someone else's head asks their game to do it, so every
 ## head is moved by exactly one player.
+##
+## Drops: each of your own rockets rolls when it bursts (DropRules, ROOM):
+## regular items, and the only place the super-rares share a pool with the
+## multiplayer-only unicorn horns. Gift boxes land on the floor; click to open.
 
 const FLOOR_Y := 700.0          ## where the stands rest, in room units
 const VIEW_HEIGHT := 720.0
@@ -23,6 +27,10 @@ const NAME_COLOR := Color("#ffe066")
 var _background: BackgroundView
 var _world: Node2D
 var _fireworks: Fireworks
+## Gift boxes, above everything in the room.
+var _drops: Node2D
+## Middle-click special effects (only you see yours).
+var _effects: ScreenEffects
 var _status: Label
 var _count: Label
 var _hint: Label
@@ -52,6 +60,11 @@ func _ready() -> void:
 	add_child(_world)
 	_fireworks = Fireworks.new()
 	add_child(_fireworks)
+	_fireworks.rocket_burst.connect(_on_rocket_burst)
+	_drops = Node2D.new()
+	add_child(_drops)
+	_effects = ScreenEffects.new()
+	add_child(_effects)
 	_build_hud()
 
 	multiplayer.peer_disconnected.connect(_on_peer_left)
@@ -61,6 +74,10 @@ func _ready() -> void:
 	# Say hello; everyone already here answers with a welcome.
 	_hello.rpc(_my_info())
 	get_viewport().size_changed.connect(_layout)
+	# Boxes still unopened from the playground come along.
+	var gifts := Game.waiting_gifts()
+	for item_id in gifts:
+		_spawn_gift(item_id, gifts[item_id], Vector2.ZERO, true)
 
 
 func _my_info() -> Dictionary:
@@ -312,13 +329,92 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		# One rocket per player in the room, launched on everyone's screen.
 		var count := _players.size()
-		_fireworks_at.rpc(_world.to_local(get_global_mouse_position()), count)
+		_fireworks_at.rpc(_world.to_local(get_global_mouse_position()), count, multiplayer.get_unique_id())
 		Game.report("fireworks_launched", {"count": count})
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE:
+		var id := Game.next_effect()
+		if id == "":
+			_show_toast("No effects yet: the desktop buddy finds them")
+		else:
+			_effects.play(id, get_global_mouse_position())
+			_show_toast(Catalog.display_name(id))
 
 
+## `owner` launched them; only the owner's own game rolls drops for them.
 @rpc("any_peer", "call_local", "reliable")
-func _fireworks_at(room_point: Vector2, count: int) -> void:
-	_fireworks.launch(_world.to_global(room_point), count)
+func _fireworks_at(room_point: Vector2, count: int, owner: int) -> void:
+	_fireworks.launch(_world.to_global(room_point), count, owner == multiplayer.get_unique_id())
+
+
+# --------------------------------------------------------------------------
+# Drops
+# --------------------------------------------------------------------------
+
+func _on_rocket_burst(at: Vector2, counted: bool) -> void:
+	if not counted:
+		return
+	var result := Game.roll_drop(true)
+	match result.kind:
+		DropRules.Kind.DUPLICATE:
+			_burst_confetti(at, 60)
+		DropRules.Kind.NEW_ITEM:
+			_spawn_gift(result.item_id, result.super_rare, at, false)
+
+
+## Boxes line the front of the floor, left to right from the middle, and
+## stack once every spot is taken.
+func _spawn_gift(item_id: String, super_rare: bool, at: Vector2, landed: bool) -> void:
+	var view := get_viewport_rect().size
+	var taken := {}
+	for child in _drops.get_children():
+		if child is GiftBox and not child.is_queued_for_deletion():
+			taken[int(child.get_meta("slot", -1))] = true
+	var slot := 0
+	while taken.has(slot):
+		slot += 1
+	var columns := maxi(1, int((view.x - 120.0) / 70.0))
+	var column := slot % columns
+	var x := view.x * 0.5 + (float((column + 1) / 2) * 70.0) * (1.0 if column % 2 == 1 else -1.0)
+	var floor_y := view.y - 8.0 - 44.0 * float(slot / columns)
+	var box := GiftBox.new()
+	box.item_id = item_id
+	box.super_rare = super_rare
+	box.set_meta("slot", slot)
+	box.floor_y = floor_y
+	box.target_x = x
+	box.z_index = 100 + slot / columns
+	box.position = Vector2(x, floor_y) if landed else Vector2(clampf(at.x, 40.0, view.x - 40.0), minf(at.y, floor_y - 60.0))
+	box.opened.connect(_on_gift_opened.bind(box))
+	_drops.add_child(box)
+
+
+func _on_gift_opened(item_id: String, box: GiftBox) -> void:
+	var is_new := Game.open_gift(item_id)
+	var tier := Catalog.tier(item_id)
+	var at := box.global_position + Vector2(0, -30)
+	_burst_confetti(at, 120 if tier == Catalog.Tier.ULTRA_RARE else 50)
+	var text := ("New: %s!" if is_new else "Already yours: %s") % Catalog.display_name(item_id)
+	match tier:
+		Catalog.Tier.ULTRA_RARE: text = "ULTRA RARE!  " + text
+		Catalog.Tier.RARE: text = "RARE!  " + text
+	_show_toast(text)
+	if tier != Catalog.Tier.COMMON:
+		var sparkles := Sparkles.new()
+		sparkles.rainbow = tier == Catalog.Tier.ULTRA_RARE
+		sparkles.area = Rect2(-70, -70, 140, 110)
+		sparkles.position = at
+		sparkles.count = 22 if sparkles.rainbow else 12
+		sparkles.seconds = 2.6
+		_drops.add_child(sparkles)
+
+
+func _burst_confetti(at: Vector2, amount: int) -> void:
+	var burst := Confetti.new()
+	burst.amount = amount
+	burst.position = at
+	_drops.add_child(burst)
+	burst.burst()
+	burst.finished.connect(burst.queue_free)
 
 
 func _on_own_drag_released(speed: float) -> void:
@@ -366,7 +462,7 @@ func _build_hud() -> void:
 	row.add_child(leave)
 
 	_hint = Label.new()
-	_hint.text = "A / D or arrow keys: walk  ·  click a head: boop  ·  drag a head: fling  ·  right-click: fireworks"
+	_hint.text = "A / D or arrow keys: walk  ·  click a head: boop  ·  drag a head: fling  ·  right-click: fireworks  ·  middle-click: effects"
 	_hint.add_theme_font_size_override("font_size", 17)
 	_hint.add_theme_color_override("font_outline_color", Color("#000000aa"))
 	_hint.add_theme_constant_override("outline_size", 6)

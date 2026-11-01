@@ -44,8 +44,11 @@ var _reported_still := false
 var _buddy := false
 var _buddy_controls: HBoxContainer
 var _moving_window := false
-var _next_timed_drop := 0.0
 var _cheats := CheatCodes.new()
+## Middle-click special effects (full game only).
+var _effects: ScreenEffects
+## Idle acts: all of them for the desktop buddy, the goat split in the full game.
+var _acts: BuddyActs
 
 
 func _ready() -> void:
@@ -81,6 +84,7 @@ func _ready() -> void:
 	add_child(_confetti)
 	_fireworks = Fireworks.new()
 	add_child(_fireworks)
+	_fireworks.rocket_burst.connect(_on_rocket_burst)
 	_drops = Node2D.new()
 	add_child(_drops)
 
@@ -110,7 +114,11 @@ func _ready() -> void:
 		_buttons.visible = false
 		_head.global_cursor = true
 		_build_buddy_controls()
-		_next_timed_drop = Game.next_timed_drop_wait()
+	_effects = ScreenEffects.new()
+	add_child(_effects)
+	if profile.has_build():
+		_acts = BuddyActs.new()
+		_acts.setup(_head, _buddy)
 
 	get_viewport().size_changed.connect(_layout)
 	_layout()
@@ -258,18 +266,32 @@ func _update_passthrough() -> void:
 	DisplayServer.window_set_mouse_passthrough(Geometry2D.convex_hull(pts), get_window().get_window_id())
 
 
-## Every 60-90 minutes (random), a drop falls from the top of the window:
-## a gift box for a new item, confetti for one already owned. Never a
-## super-rare. There's no limit: unopened boxes just keep piling up.
-func _tick_timed_drops(delta: float) -> void:
-	_next_timed_drop -= delta
-	if _next_timed_drop > 0.0:
+## Every 1 to 2.5 minutes (random, on the wall clock), a drop falls from the
+## top of the window: a gift box for a new item, confetti for one already
+## owned. Effects and super-rares can drop here (see DropRules.roll_timed).
+## If the window couldn't run for a while (locked screen), every drop it
+## missed arrives at once, already on the pile. No limit: unopened boxes
+## just keep piling up.
+func _tick_timed_drops() -> void:
+	var due := Game.due_timed_drops()
+	if due.is_empty():
 		return
-	_next_timed_drop = Game.next_timed_drop_wait()
-	var result := Game.roll_timed_drop()
-	print("[drops] Timed drop: %s" % ("confetti (already owned)" if result.kind == DropRules.Kind.DUPLICATE else Catalog.display_name(result.item_id)))
-	var spot: Vector2 = _pile_place(_free_pile_slot())["position"]
-	_show_drop(result.kind, result.item_id, false, Vector2(spot.x, -40.0) if result.kind == DropRules.Kind.NEW_ITEM else _confetti.position)
+	var catching_up := due.size() > 1
+	var duplicates := 0
+	for result in due:
+		print("[drops] Timed drop: %s" % ("confetti (already owned)" if result.kind == DropRules.Kind.DUPLICATE else Catalog.display_name(result.item_id)))
+		if result.kind == DropRules.Kind.DUPLICATE:
+			duplicates += 1
+		elif result.kind == DropRules.Kind.NEW_ITEM:
+			if catching_up:
+				_spawn_gift(result.item_id, result.super_rare, Vector2.ZERO, true)
+			else:
+				var spot: Vector2 = _pile_place(_free_pile_slot())["position"]
+				_spawn_gift(result.item_id, result.super_rare, Vector2(spot.x, -40.0), false)
+	if duplicates > 0:
+		_burst_confetti(_confetti.position, 40 if _buddy else 70)
+	if catching_up:
+		print("[drops] Caught up on %d timed drops missed while the window was stalled." % due.size())
 
 
 # --------------------------------------------------------------------------
@@ -347,6 +369,8 @@ func _update_hint() -> void:
 		fireworks += " (x%d, thanks to %d Big Head friend%s)" % [rockets, rockets - 1, "" if rockets == 2 else "s"]
 	var drag := "Drag the bar or the head" if _head.is_marionette() else "Click or drag the head"
 	_hint.text = "%s  ·  %s" % [drag, fireworks]
+	if not Game.owned_effects().is_empty():
+		_hint.text += "  ·  Middle-click: effects"
 
 
 func _run_reveal() -> void:
@@ -471,6 +495,8 @@ func _slam_banner() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		launch_fireworks(get_global_mouse_position())
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE and _playground:
+		play_next_effect(get_global_mouse_position())
 	elif event is InputEventKey and event.pressed and not event.echo and _playground and event.unicode > 0:
 		var code := _cheats.type_char(char(event.unicode))
 		if code != "":
@@ -485,7 +511,7 @@ func run_cheat(code: String) -> void:
 		"confetti":
 			_confetti.burst()
 		"party":
-			_fireworks.launch(_head.to_global(_head.head_center()) + Vector2(0, -80), 20)
+			_fireworks.launch(_head.to_global(_head.head_center()) + Vector2(0, -80), 20, false)
 		"dizzy":
 			_head.show_dizzy_stars(STARS_SECONDS)
 		"bighead":
@@ -495,30 +521,48 @@ func run_cheat(code: String) -> void:
 			Game.face_time_scale = 0.1
 		"dropall":
 			Game.drop_rate = 1.0
+		"act":
+			if _acts != null:
+				_acts.start()
 	_show_toast("Cheat: %s!" % code)
+
+
+## Middle-click: the next special effect the player owns. Effects are for
+## the full game; the desktop buddy only collects them.
+func play_next_effect(at: Vector2) -> void:
+	var id := Game.next_effect()
+	if id == "":
+		_show_toast("No effects yet: the desktop buddy finds them")
+		return
+	if _buddy:
+		_show_toast("Effects play in the full game")
+		return
+	_effects.play(id, at)
+	_show_toast(Catalog.display_name(id))
 
 
 ## Right-click: one rocket of yours plus one per friend with Big Head.
 func launch_fireworks(at: Vector2) -> void:
 	var count := Game.rockets_per_click()
-	_fireworks.launch(at, count)
+	_fireworks.launch(at, count, _playground)
 	if _playground:
 		Game.report("fireworks_launched", {"count": count})
-		_roll_drop(at)
+		if _acts != null:
+			_acts.interrupt()
 
 
 # --------------------------------------------------------------------------
 # Drops
 # --------------------------------------------------------------------------
 
-## One roll per right-click, whatever the rocket count. The result shows up
-## when the first rocket bursts: a gift box for a new item, confetti for an
-## item the player already owns.
-func _roll_drop(at: Vector2) -> void:
-	var result := Game.roll_drop()
-	if result.kind == DropRules.Kind.NOTHING:
+## One roll per rocket, when it bursts: a gift box for a new item falls from
+## the burst, confetti for an item the player already owns.
+func _on_rocket_burst(at: Vector2, counted: bool) -> void:
+	if not counted or not _playground:
 		return
-	get_tree().create_timer(0.85).timeout.connect(_show_drop.bind(result.kind, result.item_id, result.super_rare, at))
+	var result := Game.roll_drop()
+	if result.kind != DropRules.Kind.NOTHING:
+		_show_drop(result.kind, result.item_id, result.super_rare, at)
 
 
 func _show_drop(kind: DropRules.Kind, item_id: String, super_rare: bool, at: Vector2) -> void:
@@ -659,7 +703,10 @@ func _on_gift_opened(item_id: String, box: GiftBox) -> void:
 	var tier := Catalog.tier(item_id)
 	var at := box.global_position + Vector2(0, -30)
 	_burst_confetti(at, 120 if tier == Catalog.Tier.ULTRA_RARE else 50)
-	_show_toast(("New: %s!" if is_new else "Already yours: %s") % Catalog.display_name(item_id))
+	if is_new and Catalog.rarity(item_id) == Catalog.Rarity.EFFECT:
+		_show_toast("New: %s! Middle-click%s" % [Catalog.display_name(item_id), " in the full game" if _buddy else ""])
+	else:
+		_show_toast(("New: %s!" if is_new else "Already yours: %s") % Catalog.display_name(item_id))
 	if tier != Catalog.Tier.COMMON:
 		_announce_tier(tier, at)
 
@@ -745,11 +792,15 @@ func _show_toast(text: String) -> void:
 
 
 func _on_head_clicked(on_head: bool) -> void:
+	if _acts != null:
+		_acts.interrupt()
 	if on_head and _playground:
 		Game.report("head_clicked")
 
 
 func _on_drag_released(speed: float) -> void:
+	if _acts != null:
+		_acts.interrupt()
 	if not _playground:
 		return
 	Game.report("drag_released", {"speed": speed})
@@ -772,7 +823,7 @@ func _process(delta: float) -> void:
 		return
 	if _buddy:
 		_update_passthrough()
-		_tick_timed_drops(delta)
+		_tick_timed_drops()
 	# A climbing rocket that flies into the balloon head pops it.
 	if _head.is_balloon():
 		for at in _fireworks.rocket_positions():
@@ -780,6 +831,10 @@ func _process(delta: float) -> void:
 			if _head.hits_balloon(local):
 				_head.pop_balloon(local, "firework")
 				break
+	# An idle act moves the head by itself: that's not the player's doing, so
+	# both timers pause (neither counts nor resets) until it's over.
+	if _acts != null and _acts.busy():
+		return
 	# Perpetual Motion: keep it moving for 60 s. Level-Headed: leave it still for 5 min.
 	if _head.is_resting():
 		_still_for += delta

@@ -10,9 +10,10 @@ extends Node
 ##   --fast-faces            run the face swap cycle 10x faster (1.5 s / 4.5 s) for testing
 ##   --unlock-all            treat every catalog item as owned for this run
 ##   --reset-inventory       forget unlocked items; back to the starting set
-##   --drop-rate=N           chance of a drop per right-click, 0 to 1 (default 0.05)
+##   --drop-rate=N           chance of a drop per rocket, 0 to 1 (default 0.18)
 ##   --fireworks-launched=N  set the lifetime fireworks count (tests the rig milestones)
-##   --fast-timed-drops      desktop buddy timed drops every 5-10 s instead of 60-90 min
+##   --fast-timed-drops      desktop buddy timed drops every 4-10 s instead of 1-2.5 min
+##   --fast-acts             desktop buddy idle acts every few seconds instead of every few minutes
 ##   --store-screenshots     stage and save the Steam store screenshots (tools/store_screenshots.gd)
 ##   --host-room             host a shared room straight away (direct connection)
 ##   --join-room=IP[:PORT]   join a shared room straight away
@@ -61,8 +62,13 @@ signal shelf_friends_changed
 ## Desktop buddy: a small, frameless, see-through, always-on-top window.
 const BUDDY_SIZE := Vector2i(560, 680)
 ## Timed drops while the buddy runs: a random wait in this range (seconds).
-const TIMED_DROP_MIN := 3600.0
-const TIMED_DROP_MAX := 5400.0
+## Counted on the wall clock, so a locked screen or a stalled window still
+## earns its drops (they all arrive once the window runs again).
+const TIMED_DROP_MIN := 60.0
+const TIMED_DROP_MAX := 150.0
+## At most this much missed time is made up in one go (a computer that slept
+## for a weekend doesn't bury the desktop in boxes).
+const TIMED_DROP_CATCH_UP := 12.0 * 3600.0
 
 ## Emitted for every unlock (Steam shows its own popup; this is for logs and tests).
 signal achievement_unlocked(id: String)
@@ -75,7 +81,7 @@ var inventory: InventoryPort
 ## Set when leaving Customize (Save or Cancel): the next reveal scene skips
 ## straight to the playground instead of replaying the pop.
 var skip_reveal_once := false
-## Chance of a regular drop per right-click (--drop-rate overrides it).
+## Chance of a regular drop per rocket (--drop-rate overrides it).
 var drop_rate := DropRules.DEFAULT_DROP_RATE
 ## Items in gift boxes on screen, not yet clicked: item id -> super-rare flag.
 ## Kept here (not in the scene) so boxes survive a trip to Customize; lost at
@@ -92,6 +98,12 @@ var shelf_friends: Array[Friend] = []
 var buddy_mode := false
 ## 1 normally; --fast-timed-drops makes timed drops come every few seconds.
 var timed_drop_scale := 1.0
+## 1 normally; --fast-acts makes the buddy's idle acts come every few seconds.
+var act_time_scale := 1.0
+## When the next buddy timed drop is due, in Unix seconds (0 = not scheduled).
+var _next_timed_drop_at := 0.0
+## Effects (Catalog "effect" items) the middle mouse button steps through.
+var _next_effect := 0
 var _saved_window := {}
 ## Multiplayer: the shared room session (see NetSession).
 var net := NetSession.new()
@@ -148,7 +160,10 @@ func _ready() -> void:
 	_parse_drop_rate(args)
 	if "--fast-timed-drops" in args:
 		timed_drop_scale = 10.0 / TIMED_DROP_MAX
-		print("[game] Timed drops every 5-10 s (--fast-timed-drops).")
+		print("[game] Timed drops every 4-10 s (--fast-timed-drops).")
+	if "--fast-acts" in args:
+		act_time_scale = 0.05
+		print("[game] Buddy idle acts every few seconds (--fast-acts).")
 	if "--fast-faces" in args:
 		face_time_scale = 0.1
 		print("[game] Face swaps run 10x faster (--fast-faces).")
@@ -275,7 +290,7 @@ func _parse_drop_rate(args: PackedStringArray) -> void:
 			continue
 		if value.is_valid_float() and float(value) >= 0.0 and float(value) <= 1.0:
 			drop_rate = float(value)
-			print("[game] Drop chance per right-click: %s (--drop-rate)." % value)
+			print("[game] Drop chance per rocket: %s (--drop-rate)." % value)
 		else:
 			push_warning("--drop-rate needs a number from 0 to 1, like --drop-rate=1 (got \"%s\"); ignoring it." % value)
 		return
@@ -314,18 +329,39 @@ func leave_room() -> void:
 	go_to(REVEAL_SCENE)
 
 
-## A timed drop for the desktop buddy: always drops something, never a super-rare.
-func roll_timed_drop() -> DropRules.Result:
+## Desktop buddy timed drops that are due now: none most of the time, one
+## when the wait is up, several when the window couldn't run for a while
+## (locked screen, display asleep). Drops are scheduled on the wall clock,
+## not frame time, so time the game spent frozen still counts.
+func due_timed_drops() -> Array[DropRules.Result]:
+	var out: Array[DropRules.Result] = []
+	var now := Time.get_unix_time_from_system()
+	if _next_timed_drop_at <= 0.0:
+		_next_timed_drop_at = now + _timed_drop_wait()
+		return out
+	_next_timed_drop_at = maxf(_next_timed_drop_at, now - TIMED_DROP_CATCH_UP)
+	while _next_timed_drop_at <= now:
+		_next_timed_drop_at += _timed_drop_wait()
+		out.append(_roll_timed_drop())
+	return out
+
+
+## Leaving buddy mode stops the clock; the next buddy session starts a fresh wait.
+func reset_timed_drops() -> void:
+	_next_timed_drop_at = 0.0
+
+
+func _roll_timed_drop() -> DropRules.Result:
 	var fireworks := stats.get_int(AchievementRules.STAT_FIREWORKS)
-	var result := DropRules.roll(_drop_rng, 1.0, func(id: String) -> bool:
-		return inventory.owns(id) or _waiting_in_boxes.has(id), fireworks, false)
+	var result := DropRules.roll_timed(_drop_rng, func(id: String) -> bool:
+		return inventory.owns(id) or _waiting_in_boxes.has(id), fireworks)
 	if result.kind == DropRules.Kind.NEW_ITEM:
-		_waiting_in_boxes[result.item_id] = false
+		_waiting_in_boxes[result.item_id] = result.super_rare
 	return result
 
 
-## Seconds until the next timed drop (random, 60-90 minutes unless sped up).
-func next_timed_drop_wait() -> float:
+## Seconds between timed drops (random, 1 to 2.5 minutes unless sped up).
+func _timed_drop_wait() -> float:
 	return randf_range(TIMED_DROP_MIN, TIMED_DROP_MAX) * timed_drop_scale
 
 
@@ -343,6 +379,7 @@ func enter_buddy() -> void:
 		"unresizable": window.unresizable, "content_scale_mode": window.content_scale_mode,
 	}
 	buddy_mode = true
+	reset_timed_drops()
 	window.mode = Window.MODE_WINDOWED
 	window.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
 	window.borderless = true
@@ -386,14 +423,38 @@ func exit_buddy() -> void:
 	go_to(REVEAL_SCENE)
 
 
-## One right-click's drop roll. A new item is held "in a box" until opened.
-func roll_drop() -> DropRules.Result:
+## One rocket's drop roll (the playground, or `in_room` for a shared room).
+## A new item is held "in a box" until opened.
+func roll_drop(in_room := false) -> DropRules.Result:
 	var fireworks := stats.get_int(AchievementRules.STAT_FIREWORKS)
-	var result := DropRules.roll(_drop_rng, drop_rate, func(id: String) -> bool:
+	var source := DropRules.Source.ROOM if in_room else DropRules.Source.PLAYGROUND
+	var result := DropRules.roll_firework(_drop_rng, source, drop_rate, func(id: String) -> bool:
 		return inventory.owns(id) or _waiting_in_boxes.has(id), fireworks)
 	if result.kind == DropRules.Kind.NEW_ITEM:
 		_waiting_in_boxes[result.item_id] = result.super_rare
 	return result
+
+
+## Special effects the player owns, in catalog order.
+func owned_effects() -> Array[String]:
+	var ids: Array[String] = []
+	for base in Catalog.base_count("effect"):
+		var id := Catalog.item_id("effect", base)
+		if inventory.owns(id):
+			ids.append(id)
+	return ids
+
+
+## The middle mouse button steps through owned effects in order. Returns ""
+## when the player owns none yet.
+func next_effect() -> String:
+	var owned := owned_effects()
+	if owned.is_empty():
+		return ""
+	_next_effect = posmod(_next_effect, owned.size())
+	var id := owned[_next_effect]
+	_next_effect += 1
+	return id
 
 
 ## Gift boxes still waiting to be clicked: item id -> super-rare flag.

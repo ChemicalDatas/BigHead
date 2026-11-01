@@ -14,7 +14,8 @@ const CODES := {
 	"dizzy": {"release": true, "what": "Dizzy stars, any time"},
 	"bighead": {"release": false, "what": "Head bigger than the slider allows, until you leave the playground"},
 	"fastfaces": {"release": false, "what": "Face swaps 10x faster, until you quit"},
-	"dropall": {"release": false, "what": "Every right-click drops something, until you quit"},
+	"dropall": {"release": false, "what": "Every rocket drops something, until you quit"},
+	"act": {"release": false, "what": "The bobblehead does an idle act right now"},
 }
 
 const MAX_LENGTH := 12

@@ -30,11 +30,15 @@ var offset_velocity := Vector2.ZERO
 
 var dragging := false
 var drag_target := Vector2.ZERO
+## Where the springs settle when left alone (an idle act leaning the head,
+## e.g. nodding off). Zero normally.
+var rest_angle := 0.0
+var rest_offset := Vector2.ZERO
 
 
 func step(delta: float) -> void:
 	var wa := TAU * angle_frequency_hz
-	var angle_rest := 0.0
+	var angle_rest := rest_angle
 	if dragging:
 		# Lean the head toward the side it's being pulled to.
 		angle_rest = clampf(offset.x * 0.004, -max_angle * 0.6, max_angle * 0.6)
@@ -55,13 +59,13 @@ func step(delta: float) -> void:
 		return
 
 	var wo := TAU * offset_frequency_hz
-	var offset_accel := -wo * wo * offset - 2.0 * offset_damping_ratio * wo * offset_velocity
+	var offset_accel := -wo * wo * (offset - rest_offset) - 2.0 * offset_damping_ratio * wo * offset_velocity
 	offset_velocity += offset_accel * delta
 	offset += offset_velocity * delta
-	if offset.length() > max_offset:
+	if (offset - rest_offset).length() > max_offset:
 		# Coming back from a drag: let it overshoot a little, then clamp.
-		var limit := maxf(max_offset, offset.length() - 400.0 * delta)
-		offset = offset.limit_length(limit)
+		var limit := maxf(max_offset, (offset - rest_offset).length() - 400.0 * delta)
+		offset = rest_offset + (offset - rest_offset).limit_length(limit)
 
 
 ## A click: push the head toward `direction` (measured from the head's centre).
@@ -94,5 +98,5 @@ func pop(strength := 1.0) -> void:
 
 
 func is_resting() -> bool:
-	return not dragging and absf(angle) < 0.005 and absf(angular_velocity) < 0.02 \
-		and offset.length() < 0.5 and offset_velocity.length() < 2.0
+	return not dragging and absf(angle - rest_angle) < 0.005 and absf(angular_velocity) < 0.02 \
+		and (offset - rest_offset).length() < 0.5 and offset_velocity.length() < 2.0

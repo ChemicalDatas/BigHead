@@ -10,7 +10,7 @@ extends RefCounted
 ## HeadBuild still stores choices as indices; this file maps them to ids.
 ## Accessory index 0 means "none" and is never an item; index 1 is the first base.
 
-const SLOTS: Array[String] = ["face_shape", "hair", "eyes", "mouth", "body", "accessory", "rig"]
+const SLOTS: Array[String] = ["face_shape", "hair", "eyes", "mouth", "body", "accessory", "rig", "effect"]
 
 const BASES := {
 	"face_shape": [
@@ -26,6 +26,10 @@ const BASES := {
 	## What holds the head up. The spring-neck Bobble is the default and isn't an
 	## item (rig index 0, like "no accessory"); the rest are collected.
 	"rig": ["balloon", "marionette"],
+	## Special effects: full-screen shows played with the middle mouse button
+	## in the full game. Not part of the head; they only drop for the desktop
+	## buddy (see ScreenEffects).
+	"effect": ["shooting_stars", "rainbow", "ripple", "swirl", "aurora", "snow", "disco", "kaleidoscope"],
 }
 
 const LABELS := {
@@ -40,6 +44,7 @@ const LABELS := {
 	"body": ["Suit", "Hoodie", "T-shirt", "Robe", "Goat", "Unicorn"],
 	"accessory": ["Glasses", "Party hat", "Crown", "Goat horns", "Wizard hat", "Unicorn horn"],
 	"rig": ["Balloon", "Marionette"],
+	"effect": ["Shooting stars", "Rainbow", "Ripple", "Swirl", "Aurora", "Snowfall", "Disco", "Kaleidoscope"],
 }
 
 ## Animal faces: one standalone face per animal body style, colored and
@@ -66,15 +71,16 @@ const STARTING_SET: Array[String] = [
 ## chosen style (#1-#4) of each.
 const STARTING_STYLED := {"body": ["suit", "tshirt"]}
 
-## Rarity tiers.
-##   COMMON       the regular drop pool
-##   SUPER_RARE   the unicorn set: its own 1-in-500 roll (DropRules)
-##   MULTIPLAYER  the rarest: unicorn horns #2-#4, which only drop in
-##                multiplayer (iteration 3). No single-player pool has them.
-enum Rarity { COMMON, SUPER_RARE, MULTIPLAYER }
+## Rarity tiers, and where each can drop (see DropRules):
+##   COMMON       everywhere: the playground, shared rooms and the desktop buddy
+##   SUPER_RARE   the unicorn set and the rigs: shared rooms and the desktop
+##                buddy only, never the single-player playground
+##   MULTIPLAYER  the rarest: unicorn horns #2-#4, shared rooms only
+##   EFFECT       special effects: the desktop buddy only
+enum Rarity { COMMON, SUPER_RARE, MULTIPLAYER, EFFECT }
 
-## The unicorn set. Every style of the unicorn body counts; only horn #1 drops
-## in single player.
+## The unicorn set and the rigs. Every style of the unicorn body counts; only
+## horn #1 is here (the rest are MULTIPLAYER).
 const SUPER_RARE_ITEMS: Array[String] = [
 	"face_shape/unicorn", "face_shape/unicorn_lavender", "face_shape/unicorn_pink", "face_shape/unicorn_midnight",
 	"hair/rainbow",
@@ -85,7 +91,9 @@ const SUPER_RARE_ITEMS: Array[String] = [
 ]
 ## Super-rares that only join the drop pool once the player has launched this
 ## many fireworks in total (the lifetime fireworks stat).
-const FIREWORKS_TO_UNLOCK := {"rig/balloon": 500, "rig/marionette": 1000}
+## Kept low enough that a player can own everything in about four hours (at
+## 1,000 the Marionette alone would take five hours of clicking to unlock).
+const FIREWORKS_TO_UNLOCK := {"rig/balloon": 200, "rig/marionette": 400}
 
 const MULTIPLAYER_ITEMS: Array[String] = [
 	"accessory/unicorn_horn/1", "accessory/unicorn_horn/2", "accessory/unicorn_horn/3",
@@ -153,6 +161,8 @@ static func tier(id: String) -> Tier:
 
 
 static func rarity(id: String) -> Rarity:
+	if id.begins_with("effect/"):
+		return Rarity.EFFECT
 	if id in SUPER_RARE_ITEMS:
 		return Rarity.SUPER_RARE
 	if id in MULTIPLAYER_ITEMS:
@@ -179,6 +189,7 @@ static func display_name(id: String) -> String:
 		"eyes": return "%s eyes" % name
 		"mouth": return "%s mouth" % name
 		"rig": return "%s rig" % name
+		"effect": return "%s effect" % name
 	if parts.size() > 2:
 		return "%s #%d" % [name, int(parts[2]) + 1]
 	return name

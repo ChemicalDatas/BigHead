@@ -327,8 +327,9 @@ func _make_item_picker(category: String) -> Control:
 			var text := HeadBuild.option_label(category, index)
 			if _build.is_option_owned(category, index, Game.inventory):
 				return text
-			if Catalog.rarity(_build.item_id_for(category, index)) == Catalog.Rarity.MULTIPLAYER:
-				return text + " (multiplayer)"
+			match Catalog.rarity(_build.item_id_for(category, index)):
+				Catalog.Rarity.MULTIPLAYER: return text + " (multiplayer)"
+				Catalog.Rarity.SUPER_RARE: return text + " (buddy or multiplayer)"
 			return text + " (locked)",
 		func(step: int) -> void:
 			if category == "accessory_variant" and _build.accessory == 0:

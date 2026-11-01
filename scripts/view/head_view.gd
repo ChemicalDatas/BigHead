@@ -128,6 +128,21 @@ var _mouse_velocity := Vector2.ZERO
 ## Extra head size from the "bighead" cheat code (never saved).
 var size_boost := 1.0
 
+## Idle acts (BuddyActs) borrow the figure for a while:
+##   expression     "" (the build's own face), "sleep" (eyes shut), "yawn"
+##                  (eyes shut, mouth wide), "chomp" (mouth open, for eating)
+##   gaze_override  where the eyes look instead of the cursor (unit-ish
+##                  vector in head space), while use_gaze_override is on
+##   pose_target    how far each arm is turned at the shoulder (people only);
+##                  the arms ease toward it. See reach_hands_to().
+##   show_stand     false draws the body without its stand (the goat's twin)
+var expression := ""
+var use_gaze_override := false
+var gaze_override := Vector2.ZERO
+var pose_target: Array[float] = [0.0, 0.0]
+var _pose: Array[float] = [0.0, 0.0]
+var show_stand := true
+
 
 func radius() -> float:
 	return base_radius * build.head_size * size_boost
@@ -446,6 +461,8 @@ func _make_scrap() -> void:
 func _process(delta: float) -> void:
 	if is_balloon():
 		_advance_balloon(delta)
+	for i in _pose.size():
+		_pose[i] = lerpf(_pose[i], pose_target[i], 1.0 - exp(-6.0 * delta))
 	_update_gaze(delta)
 	if _stars_left > 0.0:
 		_stars_left = maxf(_stars_left - delta, 0.0)
@@ -471,7 +488,9 @@ func _looks_with_head() -> bool:
 ## so a far-away cursor never pushes the eyes past their limit.
 func _update_gaze(delta: float) -> void:
 	var target := Vector2.ZERO
-	if look_at_cursor:
+	if use_gaze_override:
+		target = gaze_override.limit_length(1.0)
+	elif look_at_cursor:
 		var r := radius()
 		var c := Vector2(0.0, -r * 0.92)
 		var in_head: Vector2
@@ -833,7 +852,12 @@ func _draw_dizzy_stars(c: Vector2, r: float) -> void:
 
 
 func _draw_base_and_body() -> void:
-	# Stand
+	if show_stand:
+		_draw_stand()
+	_draw_body()
+
+
+func _draw_stand() -> void:
 	var base := _ellipse(Vector2(0, 205), 120, 26, 40)
 	draw_colored_polygon(base, BASE)
 	draw_polyline(_closed(base), OUTLINE, 4.0, true)
@@ -843,6 +867,9 @@ func _draw_base_and_body() -> void:
 	draw_polyline(_closed(front), OUTLINE, 4.0, true)
 	draw_line(Vector2(-120, 180), Vector2(-120, 205), OUTLINE, 4.0)
 	draw_line(Vector2(120, 180), Vector2(120, 205), OUTLINE, 4.0)
+
+
+func _draw_body() -> void:
 	# Body: deliberately tiny next to the head. Arms, legs and the tail go
 	# behind the torso so their inner ends tuck under it. The marionette can
 	# lift and tilt it off the stand (_body_xform).
@@ -926,11 +953,56 @@ func _draw_legs(shape: int, look: Dictionary, textured: bool) -> void:
 			draw_set_transform_matrix(_body_xform)
 
 
-## How far limb i is swung (marionette only; 0 otherwise).
+## How far limb i is swung: by the marionette's strings, or (people's arms,
+## other rigs) by an idle act's pose.
 func _swing(i: int) -> float:
-	if _puppet == null or i >= _limb_swing.size():
-		return 0.0
-	return _limb_swing[i]
+	if _puppet != null:
+		return _limb_swing[i] if i < _limb_swing.size() else 0.0
+	if not BodyShapes.is_animal(build.body_shape) and i < _pose.size():
+		return _pose[i]
+	return 0.0
+
+
+## Turns the arms so the hands point at `targets` (right hand first, in this
+## node's space). The arms keep their length; they ease there over a moment.
+## An empty array puts them back down.
+func reach_hands_to(targets: Array) -> void:
+	var arms := BodyShapes.arms(build.body_shape)
+	var hands := BodyShapes.hands(build.body_shape)
+	for i in pose_target.size():
+		if i >= arms.size() or i >= targets.size():
+			pose_target[i] = 0.0
+			continue
+		var shoulder := (arms[i][0] + arms[i][1]) * 0.5
+		var to: Vector2 = targets[i]
+		pose_target[i] = wrapf((to - shoulder).angle() - (hands[i] - shoulder).angle(), -PI, PI)
+
+
+## Where the hands are now (right first), in this node's space. Animals have
+## no hands: two points at the front of the chest instead.
+func hand_positions() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	var arms := BodyShapes.arms(build.body_shape)
+	var hands := BodyShapes.hands(build.body_shape)
+	if hands.is_empty():
+		out.append(_body_xform * Vector2(34, 120))
+		out.append(_body_xform * Vector2(-34, 120))
+		return out
+	for i in hands.size():
+		var shoulder := (arms[i][0] + arms[i][1]) * 0.5
+		out.append(_body_xform * (shoulder + (hands[i] - shoulder).rotated(_swing(i))))
+	return out
+
+
+## A point given in head space (0,0 = the middle of the face, before any
+## bobble) to this node's space, following the head as it bobbles.
+func head_point(p: Vector2) -> Vector2:
+	var c := Vector2(0.0, -radius() * 0.92)
+	if _puppet != null:
+		return _puppet.head + p.rotated(_puppet.head_angle + _look_tilt)
+	if is_balloon() and _rope != null:
+		return head_center() + p.rotated(bobble.angle + _look_tilt)
+	return _body_xform * (bobble.offset + (c + p).rotated(bobble.angle + _look_tilt))
 
 
 ## The unicorn's tail: six rainbow strands, the same on every style.
@@ -1149,7 +1221,8 @@ func _draw_unicorn_muzzle(c: Vector2, r: float, s: Vector2) -> void:
 		for p in _ellipse(Vector2.ZERO, r * 0.045, r * 0.03, 12):
 			n.append(c + (Vector2(side * r * 0.2, r * 0.36) + p) * s)
 		draw_colored_polygon(n, dark)
-	draw_arc(c + Vector2(0, r * 0.47) * s, r * 0.16 * s.x, PI * 0.22, PI * 0.78, 16, dark, 4.0, true)
+	if not _draw_expression_mouth(c + Vector2(0, r * 0.5) * s, r * 0.8, s):
+		draw_arc(c + Vector2(0, r * 0.47) * s, r * 0.16 * s.x, PI * 0.22, PI * 0.78, 16, dark, 4.0, true)
 
 
 ## The goat's muzzle: a soft snout with slanted nostrils and a little "w" mouth.
@@ -1163,6 +1236,9 @@ func _draw_goat_muzzle(c: Vector2, r: float, s: Vector2) -> void:
 	var dark := light.darkened(0.55)
 	for side in [-1.0, 1.0]:
 		draw_line(c + Vector2(side * r * 0.08, r * 0.42) * s, c + Vector2(side * r * 0.15, r * 0.48) * s, dark, 4.0, true)
+	if _draw_expression_mouth(c + Vector2(0, r * 0.62) * s, r * 0.8, s):
+		return
+	for side in [-1.0, 1.0]:
 		draw_arc(c + Vector2(side * r * 0.07, r * 0.6) * s, r * 0.07 * s.x, PI * 0.1, PI * 0.9, 10, dark, 3.5, true)
 	draw_line(c + Vector2(0, r * 0.5) * s, c + Vector2(0, r * 0.62) * s, dark, 3.5, true)
 
@@ -1174,6 +1250,12 @@ func _draw_goat_muzzle(c: Vector2, r: float, s: Vector2) -> void:
 ##   Angry  : the dot shifts; the brow stays put
 ##   Happy  : closed eyes don't move; the head tilts instead (_looks_with_head)
 func _draw_eyes(c: Vector2, r: float, s: Vector2) -> void:
+	if expression == "sleep" or expression == "yawn":
+		# Shut: a curve that dips down, lashes on the low side.
+		for side in [-1.0, 1.0]:
+			var e := c + Vector2(side * r * 0.32, -r * 0.08) * s
+			draw_arc(e, r * 0.11 * s.y, PI * 0.1, PI * 0.9, 14, _ink(), 5.0, true)
+		return
 	for side in [-1.0, 1.0]:
 		var e := c + Vector2(side * r * 0.32, -r * 0.12) * s
 		match build.eyes:
@@ -1196,6 +1278,8 @@ func _draw_eyes(c: Vector2, r: float, s: Vector2) -> void:
 
 func _draw_mouth(c: Vector2, r: float, s: Vector2) -> void:
 	var m := c + Vector2(0, r * 0.38) * s
+	if _draw_expression_mouth(m, r, s):
+		return
 	match build.mouth:
 		0:  # Smile
 			draw_arc(m + Vector2(0, -r * 0.14) * s, r * 0.26 * s.x, PI * 0.18, PI * 0.82, 20, OUTLINE, 6.0, true)
@@ -1212,6 +1296,28 @@ func _draw_mouth(c: Vector2, r: float, s: Vector2) -> void:
 			draw_arc(m, r * 0.1 * s.y, 0, TAU, 24, OUTLINE, 4.0, true)
 		3:  # Flat
 			draw_line(m + Vector2(-r * 0.2, 0) * s, m + Vector2(r * 0.2, 0) * s, OUTLINE, 6.0, true)
+
+
+## The mouth for an idle act's expression; false when the build's own mouth
+## should be drawn. Animal faces call this on their muzzle too.
+func _draw_expression_mouth(m: Vector2, r: float, s: Vector2) -> bool:
+	match expression:
+		"yawn":
+			var mouth := _ellipse(m + Vector2(0, r * 0.02) * s, r * 0.15 * s.x, r * 0.2 * s.y, 28)
+			draw_colored_polygon(mouth, Color("#5a1e1e"))
+			draw_colored_polygon(_ellipse(m + Vector2(0, r * 0.14) * s, r * 0.09 * s.x, r * 0.05 * s.y, 16), Color("#e0707a"))
+			draw_polyline(_closed(mouth), OUTLINE, 4.0, true)
+			return true
+		"chomp":
+			var open := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 1000.0 * 14.0)
+			var mouth := _ellipse(m, r * 0.13 * s.x, r * (0.03 + 0.09 * open) * s.y, 24)
+			draw_colored_polygon(mouth, Color("#5a1e1e"))
+			draw_polyline(_closed(mouth), OUTLINE, 4.0, true)
+			return true
+		"sleep":
+			draw_circle(m, r * 0.045 * s.y, Color("#5a1e1e"))
+			return true
+	return false
 
 
 func _draw_hair_back(c: Vector2, r: float) -> void:
